@@ -1,0 +1,12 @@
+/* A small example theme, shaped like the ones Standard Notes injects into editors. */
+:root {
+  --sn-stylekit-background-color: #f4ecd8;
+  --sn-stylekit-foreground-color: #3b2f22;
+  --sn-stylekit-editor-background-color: #f4ecd8;
+  --sn-stylekit-editor-foreground-color: #3b2f22;
+  --sn-stylekit-border-color: #dccfb2;
+  --sn-stylekit-contrast-background-color: #ebe0c6;
+  --sn-stylekit-neutral-color: #7d6b55;
+  --sn-stylekit-info-color: #8a4b14;
+  --sn-stylekit-info-contrast-color: #ffffff;
+}

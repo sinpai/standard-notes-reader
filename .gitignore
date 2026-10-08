@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+# Local font files used for manual testing in the harness (fonts are usually not redistributable)
+harness/fonts/

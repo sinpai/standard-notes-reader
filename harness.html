@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Standard Notes host harness</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/harness/harness.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1>SN host harness</h1>
+      <p class="hint">
+        Hosts the editor exactly like Standard Notes: a sandboxed iframe without <code>allow-same-origin</code>,
+        talking over postMessage. Switching notes reloads the iframe, as the app does.
+      </p>
+
+      <h2>Notes</h2>
+      <ul id="notes" class="notes"></ul>
+
+      <h2>Host</h2>
+      <label>Theme <select id="theme"></select></label>
+      <label>
+        Environment
+        <select id="environment">
+          <option value="web">web</option>
+          <option value="desktop">desktop</option>
+          <option value="mobile">mobile (JSON messages)</option>
+        </select>
+      </label>
+      <div class="buttons">
+        <button id="remote-edit" type="button">Simulate remote edit</button>
+        <button id="toggle-lock" type="button">Toggle lock</button>
+        <button id="reload" type="button">Reload editor</button>
+      </div>
+
+      <h2>Synced plugin data</h2>
+      <p class="hint">Seed a font as if it had been imported on another device.</p>
+      <input id="seed-font" type="file" accept=".ttf,.otf,.woff,.woff2,.ttc" multiple />
+      <p id="data-summary" class="hint"></p>
+      <button id="reset" type="button">Reset notes and plugin data</button>
+
+      <h2>Messages</h2>
+      <ol id="log" class="log"></ol>
+    </aside>
+    <main class="stage">
+      <iframe
+        id="editor"
+        title="Editor"
+        sandbox="allow-scripts allow-top-navigation-by-user-activation allow-popups allow-modals allow-forms allow-downloads"
+      ></iframe>
+    </main>
+    <script type="module" src="/harness/harness.ts"></script>
+  </body>
+</html>

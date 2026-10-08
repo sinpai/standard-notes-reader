@@ -15,7 +15,8 @@ devices, phones included.
 - **Imported fonts**: TTF, OTF, WOFF and WOFF2 files. Family, weight, italic and variable-weight ranges are read
   from the font itself, so Regular/Bold/Italic files of a family group together and bold or italic text uses the
   real styles instead of synthesized ones.
-- A text font for all notes, plus an optional font for an individual note.
+- A text font for all notes, plus an optional font for an individual note. The first font you import becomes the font
+  for all notes (unless you already picked one), and **Use for all notes** switches between imported fonts.
 - A code font for code in Read view, optionally also used while editing.
 - Font size, line spacing, text width and the view notes open in.
 - Follows the active Standard Notes theme, including dark themes.

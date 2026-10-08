@@ -9,18 +9,20 @@ import {
   libraryBytes,
 } from '../fonts/library'
 import { fontStack } from '../fonts/stack'
-import type { ImportedFamily, StoredFontFace } from '../fonts/types'
+import type { FontRef, ImportedFamily, StoredFontFace } from '../fonts/types'
 
 const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog'
 
 interface Props {
   controller: AppController
   library: StoredFontFace[]
+  /** The text font for all notes. */
+  textFont: FontRef
   /** Mobile file pickers grey out font files when filtered by extension, so they get no filter. */
   isMobile: boolean
 }
 
-export function ImportedFonts({ controller, library, isMobile }: Props) {
+export function ImportedFonts({ controller, library, textFont, isMobile }: Props) {
   const families = useMemo(() => groupFamilies(library), [library])
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<ImportResult>()
@@ -81,7 +83,10 @@ export function ImportedFonts({ controller, library, isMobile }: Props) {
       {result && (
         <div class="import-result" role="status">
           {result.imported.length > 0 && (
-            <p class="message-success">Imported {Array.from(new Set(result.imported)).join(', ')}.</p>
+            <p class="message-success">
+              Imported {Array.from(new Set(result.imported)).join(', ')}.
+              {result.defaultFamily && ` ${result.defaultFamily} is now used for all notes.`}
+            </p>
           )}
           {result.repaired.length > 0 && (
             <p class="message-warning">
@@ -100,7 +105,12 @@ export function ImportedFonts({ controller, library, isMobile }: Props) {
       {families.length > 0 && (
         <ul class="family-list">
           {families.map((family) => (
-            <FamilyRow key={family.familyId} controller={controller} family={family} />
+            <FamilyRow
+              key={family.familyId}
+              controller={controller}
+              family={family}
+              usedForAllNotes={textFont.type === 'imported' && textFont.familyId === family.familyId}
+            />
           ))}
         </ul>
       )}
@@ -115,7 +125,13 @@ export function ImportedFonts({ controller, library, isMobile }: Props) {
   )
 }
 
-function FamilyRow({ controller, family }: { controller: AppController; family: ImportedFamily }) {
+interface FamilyRowProps {
+  controller: AppController
+  family: ImportedFamily
+  usedForAllNotes: boolean
+}
+
+function FamilyRow({ controller, family, usedForAllNotes }: FamilyRowProps) {
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(family.family)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -167,6 +183,13 @@ function FamilyRow({ controller, family }: { controller: AppController; family: 
         </div>
       ) : (
         <div class="row">
+          {usedForAllNotes ? (
+            <span class="badge badge-ok">Used for all notes</span>
+          ) : (
+            <button type="button" class="button-primary" onClick={() => controller.useForAllNotes(family.familyId)}>
+              Use for all notes
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

@@ -132,7 +132,12 @@ export function SettingsPanel({ controller, state, onClose }: Props) {
           </Field>
         </section>
 
-        <ImportedFonts controller={controller} library={library} isMobile={environment === 'mobile'} />
+        <ImportedFonts
+          controller={controller}
+          library={library}
+          textFont={settings.textFont}
+          isMobile={environment === 'mobile'}
+        />
         <InstalledFonts controller={controller} installedFonts={settings.installedFonts} />
       </div>
     </aside>

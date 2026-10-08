@@ -46,6 +46,8 @@ export interface ImportResult {
   /** Files that had to be repaired before the browser would load them. */
   repaired: string[]
   errors: string[]
+  /** Family that became the text font for all notes because none was chosen yet. */
+  defaultFamily?: string
 }
 
 export class AppController {
@@ -128,10 +130,12 @@ export class AppController {
   async importFontFiles(files: File[]): Promise<ImportResult> {
     const result: ImportResult = { imported: [], repaired: [], errors: [] }
     let library = this.state.library
+    let firstImported: StoredFontFace | undefined
     for (const file of files) {
       try {
         const { face, repaired } = await importFontFile(file, library)
         library = addFaceToLibrary(library, face)
+        firstImported ??= face
         result.imported.push(face.family)
         if (repaired) {
           result.repaired.push(file.name)
@@ -142,11 +146,21 @@ export class AppController {
         )
       }
     }
-    if (result.imported.length > 0) {
+    if (firstImported) {
       this.saveLibrary(library)
+      // Importing a font usually means wanting to read in it; a font already chosen is kept.
+      if (this.state.settings.textFont.type === 'theme') {
+        this.useForAllNotes(firstImported.familyId)
+        result.defaultFamily = firstImported.family
+      }
       await this.loadAllImportedFonts()
     }
     return result
+  }
+
+  /** Makes an imported font the text font for all notes. */
+  useForAllNotes(familyId: string): void {
+    this.updateSettings({ textFont: { type: 'imported', familyId } })
   }
 
   renameFamily(familyId: string, name: string): void {

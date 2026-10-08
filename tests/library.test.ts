@@ -10,8 +10,9 @@ import {
   importFontFile,
   parseStoredFaces,
 } from '../src/fonts/library'
+import { removeStrayHintMasks } from '../src/fonts/cffRepair'
 import type { StoredFontFace } from '../src/fonts/types'
-import { buildSfnt } from './helpers/sfnt'
+import { buildCffFont, buildSfnt } from './helpers/sfnt'
 
 const validate = async () => {}
 
@@ -40,17 +41,18 @@ describe('importFontFile', () => {
   it('stores TrueType fonts gzipped, and they decode back to the original bytes', async () => {
     // Repetitive padding makes the synthetic font compressible, like real fonts.
     const bytes = new Uint8Array([...buildSfnt({ family: 'Literata', weight: 400 }), ...new Uint8Array(4096)])
-    const result = await importFontFile(fontFile('Literata-Regular.ttf', bytes), [], { validate })
+    const { face: result, repaired } = await importFontFile(fontFile('Literata-Regular.ttf', bytes), [], { validate })
 
     expect(result).toMatchObject({ family: 'Literata', weight: 400, italic: false, format: 'truetype' })
     expect(result.encoding).toBe('gzip+base64')
     expect(await gunzip(base64ToBytes(result.data))).toEqual(bytes)
+    expect(repaired).toBe(false)
   })
 
   it('stores already-compressed WOFF2 files as-is and guesses the style from the file name', async () => {
     const bytes = new Uint8Array(256)
     bytes.set(new TextEncoder().encode('wOF2'))
-    const result = await importFontFile(fontFile('Literata-BoldItalic.woff2', bytes), [], { validate })
+    const { face: result } = await importFontFile(fontFile('Literata-BoldItalic.woff2', bytes), [], { validate })
 
     expect(result).toMatchObject({ family: 'Literata', weight: 700, italic: true, encoding: 'base64' })
     expect(base64ToBytes(result.data)).toEqual(bytes)
@@ -59,7 +61,7 @@ describe('importFontFile', () => {
   it('joins an existing family with the same name', async () => {
     const existing = face({ familyId: 'abc', family: 'Literata' })
     const bold = buildSfnt({ family: 'literata', weight: 700 })
-    const result = await importFontFile(fontFile('Literata-Bold.ttf', bold), [existing], { validate })
+    const { face: result } = await importFontFile(fontFile('Literata-Bold.ttf', bold), [existing], { validate })
 
     expect(result.familyId).toBe('abc')
     expect(result.family).toBe('Literata')
@@ -67,7 +69,7 @@ describe('importFontFile', () => {
 
   it('keeps the weight range of variable fonts', async () => {
     const bytes = buildSfnt({ family: 'Fraunces', weight: 400, weightAxis: [100, 900] })
-    const result = await importFontFile(fontFile('Fraunces[wght].ttf', bytes), [], { validate })
+    const { face: result } = await importFontFile(fontFile('Fraunces[wght].ttf', bytes), [], { validate })
     expect(result.weight).toEqual([100, 900])
     expect(describeFace(result)).toBe('Variable 100–900')
   })
@@ -82,7 +84,26 @@ describe('importFontFile', () => {
     const failing = async () => {
       throw new Error('OTS parsing error')
     }
-    await expect(importFontFile(file, [], { validate: failing })).rejects.toThrow('could not be loaded')
+    await expect(importFontFile(file, [], { validate: failing })).rejects.toThrow("browser's font checker")
+  })
+
+  it('repairs fonts with leftover hint masks that the browser rejects', async () => {
+    // "76 cntrmask 0 0 rmoveto endchar": a mask in a font that has no hints.
+    const bytes = buildCffFont({ glyphs: [[14], [76 + 139, 20, 139, 139, 21, 14]] })
+    // Like Chrome's sanitizer: reject the font while it still contains the stray mask.
+    const sanitizer = async (candidate: Uint8Array) => {
+      if (removeStrayHintMasks(candidate)) {
+        throw new Error('OTS parsing error: CFF : Failed validating CharStrings INDEX')
+      }
+    }
+    const { face: result, repaired } = await importFontFile(fontFile('Literaturnaya20-Regular.otf', bytes), [], {
+      validate: sanitizer,
+    })
+
+    expect(repaired).toBe(true)
+    expect(result.format).toBe('opentype')
+    const stored = result.encoding === 'gzip+base64' ? await gunzip(base64ToBytes(result.data)) : base64ToBytes(result.data)
+    expect(stored).toEqual(removeStrayHintMasks(bytes)!.bytes)
   })
 
   it('rejects files over the size limit before reading them', async () => {

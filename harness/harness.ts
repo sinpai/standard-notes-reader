@@ -260,7 +260,7 @@ async function seedFonts(files: File[]): Promise<void> {
   let library = parseStoredFaces(state.componentData.fonts)
   for (const file of files) {
     try {
-      library = addFaceToLibrary(library, await importFontFile(file, library))
+      library = addFaceToLibrary(library, (await importFontFile(file, library)).face)
       log(`seeded font ${file.name}`)
     } catch (error) {
       log(`could not seed ${file.name}: ${String(error)}`)

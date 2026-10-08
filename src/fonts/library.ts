@@ -1,4 +1,5 @@
 import { randomId } from '../util/random'
+import { removeStrayHintMasks } from './cffRepair'
 import { bytesToBase64, canCompress, gzip } from './codec'
 import { hintsFromFileName } from './fileNameHints'
 import { detectFontFormat, readFontMetadata, type FontMetadata } from './fontMetadata'
@@ -20,32 +21,46 @@ export interface ImportOptions {
   validate?: (bytes: Uint8Array) => Promise<void>
 }
 
+export interface ImportedFont {
+  face: StoredFontFace
+  /** The file had to be repaired before the browser would load it. */
+  repaired: boolean
+}
+
 /** Turns a font file picked by the user into a face that can be stored and synced. */
 export async function importFontFile(
   file: File,
   library: StoredFontFace[],
   options: ImportOptions = {},
-): Promise<StoredFontFace> {
+): Promise<ImportedFont> {
   if (file.size > MAX_FONT_FILE_BYTES) {
     throw new FontImportError(
       `${file.name} is ${formatBytes(file.size)}. Fonts up to ${formatBytes(MAX_FONT_FILE_BYTES)} are supported — try the WOFF2 version of the font, which is much smaller.`,
     )
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer())
+  let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer())
   const format = detectFontFormat(bytes)
   if (!format) {
     throw new FontImportError(`${file.name} is not a TrueType, OpenType, WOFF or WOFF2 font.`)
   }
 
-  try {
-    await (options.validate ?? validateWithFontFace)(bytes)
-  } catch {
-    throw new FontImportError(
-      format === 'collection'
-        ? `${file.name} is a font collection, which this device cannot load. Export a single style as .ttf or .otf instead.`
-        : `${file.name} could not be loaded as a font on this device.`,
-    )
+  // Browsers run fonts through a strict validator (the OpenType Sanitizer) and reject files that
+  // desktop apps happily use. Try a repair for known problems before giving up.
+  const validate = options.validate ?? validateWithFontFace
+  let repaired = false
+  if (!(await passes(validate, bytes))) {
+    const repair = removeStrayHintMasks(bytes)
+    if (repair && (await passes(validate, repair.bytes))) {
+      bytes = repair.bytes
+      repaired = true
+    } else {
+      throw new FontImportError(
+        format === 'collection'
+          ? `${file.name} is a font collection, which this device cannot load. Export a single style as .ttf or .otf instead.`
+          : `${file.name} was rejected by this browser's font checker: the file is damaged or contains data browsers do not accept. If the font is installed on this device, add it under Installed fonts instead.`,
+      )
+    }
   }
 
   const metadata: FontMetadata = await readFontMetadata(bytes).catch(() => ({}))
@@ -55,7 +70,7 @@ export async function importFontFile(
   const sameFamily = library.find((face) => face.family.toLowerCase() === family.toLowerCase())
 
   const { encoding, data } = await encodeFont(bytes, format)
-  return {
+  const face: StoredFontFace = {
     id: randomId(8),
     familyId: sameFamily?.familyId ?? randomId(8),
     family: sameFamily?.family ?? family,
@@ -68,6 +83,7 @@ export async function importFontFile(
     data,
     addedAt: Date.now(),
   }
+  return { face, repaired }
 }
 
 /**
@@ -203,6 +219,13 @@ async function encodeFont(
     }
   }
   return { encoding: 'base64', data: bytesToBase64(bytes) }
+}
+
+function passes(validate: (bytes: Uint8Array) => Promise<void>, bytes: Uint8Array): Promise<boolean> {
+  return validate(bytes).then(
+    () => true,
+    () => false,
+  )
 }
 
 async function validateWithFontFace(bytes: Uint8Array): Promise<void> {

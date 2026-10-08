@@ -37,7 +37,15 @@ are already the smallest, so prefer them for large fonts.
 **Why fonts have to be added by name:** Standard Notes runs plugins in a sandboxed iframe without
 `allow-same-origin`. That blocks the Local Font Access API, so a plugin cannot list installed fonts (and has no local
 storage either). The editor suggests installed fonts by checking a list of popular ones, and any other installed font
-can be added by typing its name.
+can be added by typing its family name — for example "Literaturnaya 20", not the file name "Literaturnaya20-Regular"
+(the editor suggests the family name when it recognizes one).
+
+**Why a font file can be rejected:** browsers check every font with a strict validator, the
+[OpenType Sanitizer](https://github.com/khaledhosny/ots), which desktop apps do not use, so some files that work
+everywhere else are refused. The editor repairs one common defect automatically: fonts whose hints were removed but
+which still contain hint-mask instructions, such as the Literaturnaya family. The repaired font draws exactly like the
+original. Other damaged files need to be re-exported (for example with FontForge or fontTools), or used as an
+installed font by name.
 
 ## Install in Standard Notes
 
@@ -96,7 +104,7 @@ Midnight theme), mobile messaging, locking and simulated edits from another devi
 | Path                           | What it does                                                         |
 | ------------------------------ | -------------------------------------------------------------------- |
 | `src/bridge/`                  | Standard Notes plugin protocol over `postMessage`                    |
-| `src/fonts/`                   | Font file parsing, import, storage, registration and detection       |
+| `src/fonts/`                   | Font file parsing, repair, import, storage, registration, detection  |
 | `src/note/`                    | What to save and when, merging outside changes, Markdown, previews   |
 | `src/app/AppController.ts`     | Application state                                                    |
 | `src/ui/`                      | Preact components and the stylesheet's theme hooks                   |

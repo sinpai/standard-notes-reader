@@ -43,6 +43,8 @@ export interface AppState {
 
 export interface ImportResult {
   imported: string[]
+  /** Files that had to be repaired before the browser would load them. */
+  repaired: string[]
   errors: string[]
 }
 
@@ -124,13 +126,16 @@ export class AppController {
   }
 
   async importFontFiles(files: File[]): Promise<ImportResult> {
-    const result: ImportResult = { imported: [], errors: [] }
+    const result: ImportResult = { imported: [], repaired: [], errors: [] }
     let library = this.state.library
     for (const file of files) {
       try {
-        const face = await importFontFile(file, library)
+        const { face, repaired } = await importFontFile(file, library)
         library = addFaceToLibrary(library, face)
         result.imported.push(face.family)
+        if (repaired) {
+          result.repaired.push(file.name)
+        }
       } catch (error) {
         result.errors.push(
           error instanceof FontImportError ? error.message : `${file.name} could not be imported: ${String(error)}`,

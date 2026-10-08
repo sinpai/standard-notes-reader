@@ -11,9 +11,11 @@ export interface FontMetadata {
   italic?: boolean
 }
 
-interface TableRecord {
+export interface TableRecord {
   offset: number
   length: number
+  /** Position of the table's entry in the font's table directory. */
+  record: number
   /** Only set for compressed WOFF tables. */
   compressedLength?: number
 }
@@ -115,7 +117,7 @@ export async function readFontMetadata(bytes: Uint8Array): Promise<FontMetadata>
   return metadata
 }
 
-function readSfntDirectory(view: DataView, start: number): Map<string, TableRecord> {
+export function readSfntDirectory(view: DataView, start: number): Map<string, TableRecord> {
   const tables = new Map<string, TableRecord>()
   const numTables = view.getUint16(start + 4)
   for (let index = 0; index < numTables; index++) {
@@ -126,7 +128,7 @@ function readSfntDirectory(view: DataView, start: number): Map<string, TableReco
     const offset = view.getUint32(record + 8)
     const length = view.getUint32(record + 12)
     if (offset + length <= view.byteLength) {
-      tables.set(readTag(view, record), { offset, length })
+      tables.set(readTag(view, record), { offset, length, record })
     }
   }
   return tables
@@ -146,7 +148,7 @@ function readWoffDirectory(view: DataView): Map<string, TableRecord> {
     if (offset + compressedLength <= view.byteLength) {
       tables.set(
         readTag(view, record),
-        compressedLength < length ? { offset, length, compressedLength } : { offset, length },
+        compressedLength < length ? { offset, length, record, compressedLength } : { offset, length, record },
       )
     }
   }

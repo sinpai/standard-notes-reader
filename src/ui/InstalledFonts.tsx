@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'preact/hooks'
 import type { AppController } from '../app/AppController'
-import { detectSuggestedFonts, isFontInstalled } from '../fonts/installed'
+import { detectSuggestedFonts, isFontInstalled, suggestInstalledFamily } from '../fonts/installed'
 import { cssString } from '../fonts/stack'
 
 interface Props {
@@ -15,6 +15,9 @@ export function InstalledFonts({ controller, installedFonts }: Props) {
   const suggestions = detected.filter((font) => !added.has(font.toLowerCase()))
   const trimmed = name.trim()
   const alreadyAdded = added.has(trimmed.toLowerCase())
+  const installedHere = trimmed ? isFontInstalled(trimmed) : false
+  const familySuggestion = trimmed && !alreadyAdded ? suggestInstalledFamily(trimmed) : undefined
+  const suggestion = familySuggestion && !added.has(familySuggestion.toLowerCase()) ? familySuggestion : undefined
 
   const add = (font: string) => {
     controller.addInstalledFont(font)
@@ -52,13 +55,26 @@ export function InstalledFonts({ controller, installedFonts }: Props) {
           <option key={font} value={font} />
         ))}
       </datalist>
-      {trimmed && !alreadyAdded && (
-        <p class={isFontInstalled(trimmed) ? 'message-success' : 'message-warning'} role="status">
-          {isFontInstalled(trimmed)
-            ? `“${trimmed}” is installed on this device.`
-            : `“${trimmed}” was not found on this device. You can still add it for devices that have it.`}
-        </p>
-      )}
+      {trimmed &&
+        !alreadyAdded &&
+        (suggestion ? (
+          <div class="name-suggestion" role="status">
+            <p class="message-warning">
+              {installedHere
+                ? `“${trimmed}” is a single style. Add the family “${suggestion}” to get its bold and italic too.`
+                : `“${trimmed}” was not found on this device. Did you mean “${suggestion}”?`}
+            </p>
+            <button type="button" class="button-primary" onClick={() => add(suggestion)}>
+              Add “{suggestion}”
+            </button>
+          </div>
+        ) : (
+          <p class={installedHere ? 'message-success' : 'message-warning'} role="status">
+            {installedHere
+              ? `“${trimmed}” is installed on this device.`
+              : `“${trimmed}” was not found on this device. You can still add it for devices that have it.`}
+          </p>
+        ))}
 
       {installedFonts.length > 0 && (
         <ul class="installed-list">

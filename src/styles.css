@@ -516,6 +516,17 @@ input[type='checkbox'] {
   margin-bottom: 4px;
 }
 
+.name-suggestion {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.name-suggestion .message-warning {
+  margin: 0;
+}
+
 .family-list,
 .installed-list {
   margin: 14px 0 0;

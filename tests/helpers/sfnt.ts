@@ -79,6 +79,71 @@ function tablesFor(spec: FontSpec): Array<{ tag: string; data: Uint8Array }> {
   return tables.sort((a, b) => a.tag.localeCompare(b.tag))
 }
 
+/**
+ * An OpenType font with a CFF table holding the given Type 2 charstrings, plus a `head` table.
+ * Offsets in the Top DICT use the fixed 5-byte form, as font tools commonly write them.
+ */
+export function buildCffFont({
+  glyphs,
+  localSubrs = [],
+  globalSubrs = [],
+}: {
+  glyphs: number[][]
+  localSubrs?: number[][]
+  globalSubrs?: number[][]
+}): Uint8Array {
+  const header = [1, 0, 4, 4]
+  const names = cffIndex([Array.from('Test', (char) => char.charCodeAt(0))])
+  const strings = cffIndex([])
+  const globals = cffIndex(globalSubrs)
+  const charStrings = cffIndex(glyphs)
+  const privateDict = localSubrs.length > 0 ? [...dictInt(6), 19] : []
+  const locals = localSubrs.length > 0 ? cffIndex(localSubrs) : []
+
+  const topDictSize = 17
+  const topDictIndexSize = cffIndex([new Array<number>(topDictSize).fill(0)]).length
+  const charStringsOffset = header.length + names.length + topDictIndexSize + strings.length + globals.length
+  const privateOffset = charStringsOffset + charStrings.length
+  const topDict = [...dictInt(charStringsOffset), 17, ...dictInt(privateDict.length), ...dictInt(privateOffset), 18]
+
+  const cff = Uint8Array.from([...header, ...names, ...cffIndex([topDict]), ...strings, ...globals, ...charStrings, ...privateDict, ...locals])
+  const head = new Uint8Array(54)
+  const headView = new DataView(head.buffer)
+  headView.setUint32(0, 0x00010000)
+  headView.setUint32(12, 0x5f0f3cf5)
+  return assembleSfnt(
+    [
+      { tag: 'CFF ', data: cff },
+      { tag: 'head', data: head },
+    ],
+    0x4f54544f,
+  )
+}
+
+function cffIndex(items: number[][]): number[] {
+  if (items.length === 0) {
+    return [0, 0]
+  }
+  const result = [items.length >> 8, items.length & 0xff, 4]
+  let offset = 1
+  const offsets = [offset]
+  for (const item of items) {
+    offset += item.length
+    offsets.push(offset)
+  }
+  for (const value of offsets) {
+    result.push((value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff)
+  }
+  for (const item of items) {
+    result.push(...item)
+  }
+  return result
+}
+
+function dictInt(value: number): number[] {
+  return [29, (value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]
+}
+
 function assembleSfnt(tables: Array<{ tag: string; data: Uint8Array }>, signature: number): Uint8Array {
   let offset = 12 + tables.length * 16
   const placed = tables.map((table) => {

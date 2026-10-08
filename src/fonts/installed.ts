@@ -1,3 +1,4 @@
+import { hintsFromFileName } from './fileNameHints'
 import { cssString } from './stack'
 
 /**
@@ -64,4 +65,13 @@ export function isFontInstalled(family: string): boolean {
 
 export function detectSuggestedFonts(): string[] {
   return SUGGESTED_FONTS.filter(isFontInstalled).sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * Suggests the family name when a file or PostScript name was typed: "Literaturnaya20" or
+ * "Literaturnaya20-Regular" → "Literaturnaya 20". Only the family name brings in all its styles.
+ */
+export function suggestInstalledFamily(name: string): string | undefined {
+  const family = hintsFromFileName(name).family
+  return family.toLowerCase() !== name.trim().toLowerCase() && isFontInstalled(family) ? family : undefined
 }

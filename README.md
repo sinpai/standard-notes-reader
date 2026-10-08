@@ -42,10 +42,12 @@ can be added by typing its family name — for example "Literaturnaya 20", not t
 
 **Why a font file can be rejected:** browsers check every font with a strict validator, the
 [OpenType Sanitizer](https://github.com/khaledhosny/ots), which desktop apps do not use, so some files that work
-everywhere else are refused. The editor repairs one common defect automatically: fonts whose hints were removed but
-which still contain hint-mask instructions, such as the Literaturnaya family. The repaired font draws exactly like the
-original. Other damaged files need to be re-exported (for example with FontForge or fontTools), or used as an
-installed font by name.
+everywhere else are refused. Safari does not use this validator, so a file can work in Safari and on iOS but not in
+Chrome or the desktop app. The editor repairs one common defect automatically: fonts whose hints were removed but
+which still contain hint-mask instructions, such as the Literaturnaya family. Because the font library syncs between
+all of these, the repair runs on every import, in every browser, and again whenever a stored font is loaded. The
+repaired font draws exactly like the original. Other damaged files need to be re-exported (for example with FontForge
+or fontTools), or used as an installed font by name.
 
 ## Install in Standard Notes
 

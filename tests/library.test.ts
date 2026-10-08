@@ -106,6 +106,18 @@ describe('importFontFile', () => {
     expect(stored).toEqual(removeStrayHintMasks(bytes)!.bytes)
   })
 
+  it('repairs those fonts even in browsers that accept them, because the library syncs to stricter ones', async () => {
+    const bytes = buildCffFont({ glyphs: [[14], [76 + 139, 20, 139, 139, 21, 14]] })
+    // Safari accepts the original file; Chrome and the desktop app do not.
+    const { face: result, repaired } = await importFontFile(fontFile('Literaturnaya20-Regular.otf', bytes), [], {
+      validate,
+    })
+
+    expect(repaired).toBe(true)
+    const stored = result.encoding === 'gzip+base64' ? await gunzip(base64ToBytes(result.data)) : base64ToBytes(result.data)
+    expect(removeStrayHintMasks(stored)).toBeUndefined()
+  })
+
   it('rejects files over the size limit before reading them', async () => {
     const file = fontFile('huge.ttf', new Uint8Array(MAX_FONT_FILE_BYTES + 1))
     await expect(importFontFile(file, [], { validate })).rejects.toThrow('WOFF2')

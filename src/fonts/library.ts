@@ -23,7 +23,7 @@ export interface ImportOptions {
 
 export interface ImportedFont {
   face: StoredFontFace
-  /** The file had to be repaired before the browser would load it. */
+  /** The file was repaired so that every browser loads it. */
   repaired: boolean
 }
 
@@ -45,22 +45,21 @@ export async function importFontFile(
     throw new FontImportError(`${file.name} is not a TrueType, OpenType, WOFF or WOFF2 font.`)
   }
 
-  // Browsers run fonts through a strict validator (the OpenType Sanitizer) and reject files that
-  // desktop apps happily use. Try a repair for known problems before giving up.
-  const validate = options.validate ?? validateWithFontFace
-  let repaired = false
-  if (!(await passes(validate, bytes))) {
-    const repair = removeStrayHintMasks(bytes)
-    if (repair && (await passes(validate, repair.bytes))) {
-      bytes = repair.bytes
-      repaired = true
-    } else {
-      throw new FontImportError(
-        format === 'collection'
-          ? `${file.name} is a font collection, which this device cannot load. Export a single style as .ttf or .otf instead.`
-          : `${file.name} was rejected by this browser's font checker: the file is damaged or contains data browsers do not accept. If the font is installed on this device, add it under Installed fonts instead.`,
-      )
-    }
+  // Chrome, Firefox and the desktop app run fonts through a strict validator (the OpenType
+  // Sanitizer); Safari does not. The library syncs between them, so known defects are repaired
+  // even when this browser would accept the file.
+  const repair = removeStrayHintMasks(bytes)
+  if (repair) {
+    bytes = repair.bytes
+  }
+  try {
+    await (options.validate ?? validateWithFontFace)(bytes)
+  } catch {
+    throw new FontImportError(
+      format === 'collection'
+        ? `${file.name} is a font collection, which this device cannot load. Export a single style as .ttf or .otf instead.`
+        : `${file.name} was rejected by this browser's font checker: the file is damaged or contains data browsers do not accept. If the font is installed on this device, add it under Installed fonts instead.`,
+    )
   }
 
   const metadata: FontMetadata = await readFontMetadata(bytes).catch(() => ({}))
@@ -83,7 +82,7 @@ export async function importFontFile(
     data,
     addedAt: Date.now(),
   }
-  return { face, repaired }
+  return { face, repaired: repair !== undefined }
 }
 
 /**
@@ -219,13 +218,6 @@ async function encodeFont(
     }
   }
   return { encoding: 'base64', data: bytesToBase64(bytes) }
-}
-
-function passes(validate: (bytes: Uint8Array) => Promise<void>, bytes: Uint8Array): Promise<boolean> {
-  return validate(bytes).then(
-    () => true,
-    () => false,
-  )
 }
 
 async function validateWithFontFace(bytes: Uint8Array): Promise<void> {

@@ -1,3 +1,4 @@
+import { removeStrayHintMasks } from './cffRepair'
 import { base64ToBytes, gunzip } from './codec'
 import type { StoredFontFace } from './types'
 
@@ -53,7 +54,9 @@ export class FontRegistry {
   }
 
   private async load(face: StoredFontFace, signature: string): Promise<void> {
-    const bytes = await decodeFace(face)
+    const decoded = await decodeFace(face)
+    // Fonts imported in Safari used to be stored without the repair that stricter browsers need.
+    const bytes = removeStrayHintMasks(decoded)?.bytes ?? decoded
     const fontFace = new FontFace(cssFamilyForImported(face.familyId), bytes as BufferSource, {
       weight: Array.isArray(face.weight) ? `${face.weight[0]} ${face.weight[1]}` : String(face.weight),
       style: face.italic ? 'italic' : 'normal',

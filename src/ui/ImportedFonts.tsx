@@ -85,8 +85,8 @@ export function ImportedFonts({ controller, library, isMobile }: Props) {
           )}
           {result.repaired.length > 0 && (
             <p class="message-warning">
-              Repaired {result.repaired.join(', ')}: removed leftover hinting data that browsers reject. The font looks
-              the same.
+              Repaired {result.repaired.join(', ')}: removed leftover hinting data that some browsers reject. The font
+              looks the same.
             </p>
           )}
           {result.errors.map((error) => (

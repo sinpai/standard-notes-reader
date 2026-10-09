@@ -9,6 +9,10 @@ export type FontRef =
   | { type: 'installed'; family: string }
   /** Font files the user imported, grouped by family. */
   | { type: 'imported'; familyId: string }
+  /** A free font shipped with the plugin. */
+  | { type: 'builtin'; id: BuiltinFontId }
+
+export type BuiltinFontId = 'old-standard-tt' | 'old-standard-tt-bold'
 
 export type FontFormat = 'truetype' | 'opentype' | 'woff' | 'woff2' | 'collection'
 

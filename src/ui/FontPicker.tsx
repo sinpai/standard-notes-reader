@@ -1,3 +1,4 @@
+import { BUILTIN_FONTS } from '../fonts/builtin'
 import { isFontInstalled } from '../fonts/installed'
 import { decodeFontRef, encodeFontRef } from '../fonts/stack'
 import type { FontRef, ImportedFamily } from '../fonts/types'
@@ -20,6 +21,7 @@ export function FontPicker({ id, value, onChange, families, installedFonts, inhe
     'generic:sans-serif',
     'generic:serif',
     'generic:monospace',
+    ...BUILTIN_FONTS.map((font) => `builtin:${font.id}`),
     ...families.map((family) => `imported:${family.familyId}`),
     ...installedFonts.map((name) => `installed:${name}`),
   ])
@@ -43,6 +45,13 @@ export function FontPicker({ id, value, onChange, families, installedFonts, inhe
         <option value="generic:sans-serif">Sans-serif</option>
         <option value="generic:serif">Serif</option>
         <option value="generic:monospace">Monospace</option>
+      </optgroup>
+      <optgroup label="Built-in">
+        {BUILTIN_FONTS.map((font) => (
+          <option key={font.id} value={`builtin:${font.id}`}>
+            {font.name}
+          </option>
+        ))}
       </optgroup>
       {families.length > 0 && (
         <optgroup label="Imported">

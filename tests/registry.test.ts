@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { findBuiltinFont } from '../src/fonts/builtin'
 import { removeStrayHintMasks } from '../src/fonts/cffRepair'
 import { bytesToBase64 } from '../src/fonts/codec'
 import { FontRegistry, cssFamilyForImported } from '../src/fonts/registry'
@@ -64,5 +65,55 @@ describe('FontRegistry', () => {
       status: 'loaded',
       descriptors: { weight: '700', style: 'italic' },
     })
+  })
+})
+
+/** Records how a font shipped with the plugin is registered and loaded. */
+class UrlFontFace {
+  loads = 0
+
+  constructor(
+    readonly family: string,
+    readonly source: string,
+    readonly descriptors: FontFaceDescriptors,
+  ) {}
+
+  load(): Promise<this> {
+    this.loads++
+    return Promise.resolve(this)
+  }
+}
+
+describe('FontRegistry built-in fonts', () => {
+  const base = 'https://example.github.io/standard-notes-reader/index.html?load=1'
+  const added: UrlFontFace[] = []
+  const fontSet = { add: (face: UrlFontFace) => added.push(face), delete: () => true } as unknown as FontFaceSet
+
+  beforeEach(() => {
+    added.length = 0
+    vi.stubGlobal('FontFace', UrlFontFace)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('registers every face next to index.html but downloads only the one used for text', async () => {
+    const registry = new FontRegistry(fontSet)
+    await registry.ensureBuiltin(findBuiltinFont('old-standard-tt-bold')!, base)
+
+    expect(added.map((face) => [face.source, face.descriptors.weight, face.descriptors.style])).toEqual([
+      ['url("https://example.github.io/standard-notes-reader/fonts/old-standard-tt/OldStandard-Regular.ttf")', '400', 'normal'],
+      ['url("https://example.github.io/standard-notes-reader/fonts/old-standard-tt/OldStandard-Italic.ttf")', '400', 'italic'],
+      ['url("https://example.github.io/standard-notes-reader/fonts/old-standard-tt/OldStandard-Bold.ttf")', '700', 'normal'],
+    ])
+    expect(added.every((face) => face.family === 'snr-builtin-old-standard-tt')).toBe(true)
+    // Bold text: only the bold file is downloaded up front; the others load if a note needs them.
+    expect(added.map((face) => face.loads)).toEqual([0, 0, 1])
+
+    // The regular variant reuses the same faces.
+    await registry.ensureBuiltin(findBuiltinFont('old-standard-tt')!, base)
+    expect(added).toHaveLength(3)
+    expect(added.map((face) => face.loads)).toEqual([1, 0, 1])
   })
 })

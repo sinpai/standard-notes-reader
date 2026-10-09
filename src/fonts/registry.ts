@@ -1,3 +1,4 @@
+import type { BuiltinFont } from './builtin'
 import { removeStrayHintMasks } from './cffRepair'
 import { base64ToBytes, gunzip } from './codec'
 import type { StoredFontFace } from './types'
@@ -19,8 +20,34 @@ export async function decodeFace(face: StoredFontFace): Promise<Uint8Array> {
 export class FontRegistry {
   private readonly registered = new Map<string, { face: FontFace; signature: string }>()
   private readonly loading = new Map<string, Promise<void>>()
+  private readonly builtinFaces = new Map<string, FontFace>()
 
   constructor(private readonly fontSet: FontFaceSet = document.fonts) {}
+
+  /**
+   * Registers the faces of a font shipped with the plugin. Files are downloaded only when text
+   * needs them; this waits for the face used for normal text.
+   */
+  ensureBuiltin(font: BuiltinFont, baseUrl: string = document.baseURI): Promise<void> {
+    let textFace: FontFace | undefined
+    for (const face of font.faces) {
+      const key = `${font.cssFamily}|${face.file}`
+      let fontFace = this.builtinFaces.get(key)
+      if (!fontFace) {
+        const url = new URL(face.file, baseUrl).href
+        fontFace = new FontFace(font.cssFamily, `url(${JSON.stringify(url)})`, {
+          weight: String(face.weight),
+          style: face.style,
+        })
+        this.fontSet.add(fontFace)
+        this.builtinFaces.set(key, fontFace)
+      }
+      if (face.style === 'normal' && face.weight === font.weight) {
+        textFace = fontFace
+      }
+    }
+    return textFace ? textFace.load().then(() => undefined) : Promise.resolve()
+  }
 
   /** Loads every face of a family. Resolves once the fonts are ready to render. */
   ensureFamily(familyId: string, library: StoredFontFace[]): Promise<void> {

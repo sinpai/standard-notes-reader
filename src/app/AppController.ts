@@ -7,6 +7,7 @@ import {
   importFontFile,
   parseStoredFaces,
 } from '../fonts/library'
+import { findBuiltinFont, type BuiltinFont } from '../fonts/builtin'
 import { FontRegistry } from '../fonts/registry'
 import { sameFontRef } from '../fonts/stack'
 import type { FontRef, StoredFontFace } from '../fonts/types'
@@ -188,8 +189,7 @@ export class AppController {
 
   /** Makes every imported font available, e.g. for previews in the settings panel. */
   loadAllImportedFonts(): Promise<void> {
-    const familyIds = groupFamilies(this.state.library).map((family) => family.familyId)
-    return this.loadFamilies(familyIds)
+    return this.loadFonts(groupFamilies(this.state.library).map((family) => family.familyId))
   }
 
   private handleReady(): void {
@@ -250,24 +250,41 @@ export class AppController {
   }
 
   private loadFontsInUse(): Promise<void> {
-    const { settings, note } = this.state
-    const familyIds = [settings.textFont, settings.codeFont, note?.textFont]
-      .filter((ref): ref is Extract<FontRef, { type: 'imported' }> => ref?.type === 'imported')
-      .map((ref) => ref.familyId)
-    return this.loadFamilies(familyIds)
+    return this.loadFonts()
   }
 
-  private async loadFamilies(familyIds: string[]): Promise<void> {
-    const library = this.state.library
+  /**
+   * Loads the fonts the settings and the open note use, plus any extra imported families.
+   * Resolves once they are ready to render; problems are reported in `fontErrors`.
+   */
+  private async loadFonts(extraFamilyIds: string[] = []): Promise<void> {
+    const { settings, note, library } = this.state
+    const inUse = [settings.textFont, settings.codeFont, note?.textFont]
+    const familyIds = new Set(extraFamilyIds)
+    const builtins = new Set<BuiltinFont>()
+    for (const ref of inUse) {
+      if (ref?.type === 'imported') {
+        familyIds.add(ref.familyId)
+      } else if (ref?.type === 'builtin') {
+        const font = findBuiltinFont(ref.id)
+        if (font) builtins.add(font)
+      }
+    }
+
     const errors: string[] = []
-    await Promise.all(
-      Array.from(new Set(familyIds)).map((familyId) =>
+    await Promise.all([
+      ...Array.from(familyIds, (familyId) =>
         this.registry.ensureFamily(familyId, library).catch(() => {
           const family = library.find((face) => face.familyId === familyId)?.family ?? 'An imported font'
           errors.push(`${family} could not be loaded on this device.`)
         }),
       ),
-    )
+      ...Array.from(builtins, (font) =>
+        this.registry.ensureBuiltin(font).catch(() => {
+          errors.push(`${font.name} could not be downloaded. Check the connection.`)
+        }),
+      ),
+    ])
     if (errors.length > 0 || this.state.fontErrors.length > 0) {
       this.setState({ fontErrors: errors })
     }

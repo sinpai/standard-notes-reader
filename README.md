@@ -15,6 +15,10 @@ devices, phones included.
 - **Imported fonts**: TTF, OTF, WOFF and WOFF2 files. Family, weight, italic and variable-weight ranges are read
   from the font itself, so Regular/Bold/Italic files of a family group together and bold or italic text uses the
   real styles instead of synthesized ones.
+- **Built-in fonts**: [Old Standard TT](https://fonts.google.com/specimen/Old+Standard+TT), a free book face in the
+  style of late-19th-century editions, with Cyrillic. Pick **Old Standard TT**, or **Old Standard TT Bold** to set all
+  text in its bold weight. Built-in fonts ship with the plugin, so they work on every device without importing and add
+  nothing to your synced data; a file is downloaded only when text needs it.
 - A text font for all notes, plus an optional font for an individual note. The first font you import becomes the font
   for all notes (unless you already picked one), and **Use for all notes** switches between imported fonts.
 - A code font for code in Read view, optionally also used while editing.
@@ -82,9 +86,11 @@ this) because the web app downloads it from the browser. `SN_PLUGIN_URL` and `SN
 The build produces:
 
 - `index.html`: the whole editor in one file, with a strict Content-Security-Policy.
+- `fonts/`: the built-in fonts and their licenses, copied from `public/`.
 - `ext.json`: the plugin manifest.
-- `standard-notes-reader.zip`: downloaded by the desktop app so the editor works offline. The desktop app checks
-  `ext.json` for updates, so bump `version` in `package.json` when you publish changes.
+- `standard-notes-reader.zip`: downloaded by the desktop app so the editor works offline. It holds the files above
+  plus a `package.json` with the version, which the desktop app compares with `ext.json` to find updates, so bump
+  `version` in `package.json` when you publish changes.
 
 **Trying it locally:** `npm run build && npm run preview`, then install `http://localhost:4173/ext.json`. This is
 easiest in the desktop app; browsers may block or ask permission before a website loads content from `localhost`.
@@ -112,6 +118,7 @@ Midnight theme), mobile messaging, locking and simulated edits from another devi
 | `src/app/AppController.ts`     | Application state                                                    |
 | `src/ui/`                      | Preact components and the stylesheet's theme hooks                   |
 | `build/standardNotesPlugin.ts` | Single-file build, CSP, `ext.json` and the desktop zip               |
+| `public/fonts/`                | Built-in fonts, each with its license                                |
 | `harness/`                     | The stand-in Standard Notes host                                     |
 
 The editor talks to Standard Notes with its own small bridge instead of `@standardnotes/component-relay`. The npm
@@ -120,7 +127,8 @@ not forward keyboard shortcuts. The bridge follows the protocol of relay 2.3.2, 
 
 ## Privacy and security
 
-- The editor cannot make network requests (`connect-src 'none'`), and only its own, hash-pinned script can run.
+- The editor cannot send requests of its own (`connect-src 'none'`), and only its own, hash-pinned script can run.
+  Besides Standard Notes themes, the only files it loads are its built-in fonts, from next to `index.html`.
 - Rendered Markdown is sanitized with DOMPurify. Inline styles are removed so notes always use your fonts.
 - Fonts stay inside Standard Notes' encrypted sync.
 
@@ -132,3 +140,8 @@ not forward keyboard shortcuts. The bridge follows the protocol of relay 2.3.2, 
 - App shortcuts such as focus mode (<kbd>⌘⇧F</kbd>) work from inside the editor. Text-editing shortcuts
   (<kbd>⌘A</kbd>, <kbd>⌘⌫</kbd>, undo, copy and paste) stay in the editor, because Standard Notes would otherwise apply
   them to the whole app (<kbd>⌘⌫</kbd> moves the note to the trash).
+
+## Credits
+
+- [Old Standard TT](https://github.com/googlefonts/OldStandardTT): Copyright 2011 The Old Standard Project Authors,
+  licensed under the SIL Open Font License 1.1 ([`public/fonts/old-standard-tt/OFL.txt`](public/fonts/old-standard-tt/OFL.txt)).

@@ -135,6 +135,7 @@ body {
   background: transparent;
   color: var(--reader-fg);
   font-family: var(--reader-edit-font);
+  font-weight: var(--reader-edit-weight, 400);
   font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
   /* Centers a column of --reader-width while keeping the scrollbar at the edge. */
@@ -155,6 +156,7 @@ body {
   margin: 0 auto;
   padding: 24px 20px 64px;
   font-family: var(--reader-text-font);
+  font-weight: var(--reader-text-weight, 400);
   font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
   overflow-wrap: break-word;
@@ -238,7 +240,16 @@ body {
 .reader pre,
 .reader kbd {
   font-family: var(--reader-code-font);
+  font-weight: var(--reader-code-weight, 400);
   font-size: 0.88em;
+}
+
+/*
+ * When the text itself is bold, the font has no heavier weight left for **bold** text, so it is
+ * thickened with an outline to keep it standing out.
+ */
+.is-bold-text .reader :is(strong, b) {
+  -webkit-text-stroke: 0.035em currentColor;
 }
 
 .reader :not(pre) > code {

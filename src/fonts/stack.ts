@@ -1,3 +1,4 @@
+import { findBuiltinFont } from './builtin'
 import { cssFamilyForImported } from './registry'
 import type { FontRef } from './types'
 
@@ -32,7 +33,16 @@ export function fontStack(ref: FontRef, fallback: string = THEME_TEXT_STACK): st
       return `${cssString(ref.family)}, ${fallback}`
     case 'imported':
       return `${cssString(cssFamilyForImported(ref.familyId))}, ${fallback}`
+    case 'builtin': {
+      const font = findBuiltinFont(ref.id)
+      return font ? `${cssString(font.cssFamily)}, ${fallback}` : fallback
+    }
   }
+}
+
+/** CSS `font-weight` for text set in a font. Only some built-in fonts are not regular weight. */
+export function fontWeight(ref: FontRef): number {
+  return ref.type === 'builtin' ? (findBuiltinFont(ref.id)?.weight ?? 400) : 400
 }
 
 export function sameFontRef(a: FontRef | undefined, b: FontRef | undefined): boolean {
@@ -51,6 +61,8 @@ export function encodeFontRef(ref: FontRef | undefined): string {
       return `installed:${ref.family}`
     case 'imported':
       return `imported:${ref.familyId}`
+    case 'builtin':
+      return `builtin:${ref.id}`
   }
 }
 
@@ -64,7 +76,10 @@ export function decodeFontRef(value: string): FontRef | undefined {
   }
   const type = value.slice(0, separator)
   const rest = value.slice(separator + 1)
-  return parseFontRef(type === 'imported' ? { type, familyId: rest } : { type, family: rest })
+  if (type === 'imported') {
+    return parseFontRef({ type, familyId: rest })
+  }
+  return parseFontRef(type === 'builtin' ? { type, id: rest } : { type, family: rest })
 }
 
 /** Validates a font reference read from synced data. */
@@ -86,6 +101,11 @@ export function parseFontRef(value: unknown): FontRef | undefined {
         : undefined
     case 'imported':
       return typeof ref.familyId === 'string' && ref.familyId ? { type: 'imported', familyId: ref.familyId } : undefined
+    case 'builtin': {
+      // Settings may come from a newer version of the plugin with fonts this one does not ship.
+      const font = typeof ref.id === 'string' ? findBuiltinFont(ref.id) : undefined
+      return font ? { type: 'builtin', id: font.id } : undefined
+    }
   }
   return undefined
 }

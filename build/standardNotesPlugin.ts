@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
-import { strToU8, zipSync } from 'fflate'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { strToU8, zipSync, type Zippable } from 'fflate'
 import type { Plugin } from 'vite'
 
 export interface StandardNotesPluginOptions {
@@ -22,12 +24,18 @@ export interface StandardNotesPluginOptions {
  * 2. Adds a strict Content-Security-Policy: only our own inline script may run and the editor
  *    cannot make network requests.
  * 3. Emits `ext.json` (the plugin manifest) and a zip that the desktop app downloads for offline use.
+ *    The zip also holds a `package.json` with the version, and the files from `public/` (built-in
+ *    fonts), which are loaded on demand from next to index.html.
  */
 export function standardNotesPlugin(options: StandardNotesPluginOptions): Plugin {
+  let publicDir = ''
   return {
     name: 'standard-notes-plugin',
     apply: 'build',
     enforce: 'post',
+    configResolved(config) {
+      publicDir = config.publicDir
+    },
     generateBundle(_outputOptions, bundle) {
       const htmlAsset = bundle['index.html']
       if (!htmlAsset || htmlAsset.type !== 'asset') {
@@ -94,11 +102,19 @@ export function standardNotesPlugin(options: StandardNotesPluginOptions): Plugin
       }
 
       this.emitFile({ type: 'asset', fileName: 'ext.json', source: `${JSON.stringify(manifest, null, 2)}\n` })
-      this.emitFile({
-        type: 'asset',
-        fileName: options.zipName,
-        source: zipSync({ 'index.html': [strToU8(html), { level: 9 }] }),
-      })
+
+      // The desktop app reads the installed version from package.json; without it, it never updates.
+      const packageJson = { name: options.identifier, version: options.version, sn: { main: 'index.html' } }
+      const zipEntries: Zippable = {
+        'index.html': [strToU8(html), { level: 9 }],
+        'package.json': [strToU8(`${JSON.stringify(packageJson, null, 2)}\n`), { level: 9 }],
+      }
+      // Files from public/ (built-in fonts and their licenses) are served next to index.html.
+      for (const filePath of publicDir ? listFiles(publicDir) : []) {
+        const entryName = relative(publicDir, filePath).split(sep).join('/')
+        zipEntries[entryName] = [new Uint8Array(readFileSync(filePath)), { level: 9 }]
+      }
+      this.emitFile({ type: 'asset', fileName: options.zipName, source: zipSync(zipEntries) })
     },
   }
 }
@@ -115,6 +131,19 @@ export function resolveBaseUrl(value: string): string {
     throw new Error(`SN_PLUGIN_URL must use http or https (got "${value}")`)
   }
   return url.href.endsWith('/') ? url.href : `${url.href}/`
+}
+
+function listFiles(directory: string): string[] {
+  if (!existsSync(directory)) {
+    return []
+  }
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => !entry.name.startsWith('.'))
+    .flatMap((entry) => {
+      const path = join(directory, entry.name)
+      return entry.isDirectory() ? listFiles(path) : [path]
+    })
+    .sort()
 }
 
 function replaceOnce(source: string, pattern: RegExp, replacement: string, label: string): string {

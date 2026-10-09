@@ -38,9 +38,25 @@ describe('production build', () => {
         latest_url: 'https://example.github.io/standard-notes-reader/ext.json',
       })
 
+      const fontFiles = [
+        'fonts/old-standard-tt/OFL.txt',
+        'fonts/old-standard-tt/OldStandard-Bold.ttf',
+        'fonts/old-standard-tt/OldStandard-Italic.ttf',
+        'fonts/old-standard-tt/OldStandard-Regular.ttf',
+      ]
       const zip = unzipSync(readFileSync(join(outDir, 'standard-notes-reader.zip')))
-      expect(Object.keys(zip)).toEqual(['index.html'])
+      expect(Object.keys(zip).sort()).toEqual([...fontFiles, 'index.html', 'package.json'])
       expect(strFromU8(zip['index.html']!)).toBe(html)
+      // The desktop app reads the installed version from here to decide whether to update.
+      expect(JSON.parse(strFromU8(zip['package.json']!))).toMatchObject({
+        version: manifest.version,
+        sn: { main: 'index.html' },
+      })
+      for (const file of fontFiles) {
+        const original = readFileSync(resolve(__dirname, '../public', file))
+        expect(Buffer.from(zip[file]!).equals(original)).toBe(true)
+        expect(readFileSync(join(outDir, file)).equals(original)).toBe(true)
+      }
     } finally {
       delete process.env.SN_PLUGIN_URL
       rmSync(outDir, { recursive: true, force: true })

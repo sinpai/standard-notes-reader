@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { AppController } from '../app/AppController'
-import { THEME_MONO_STACK, fontStack } from '../fonts/stack'
+import { THEME_MONO_STACK, fontStack, fontWeight } from '../fonts/stack'
 import { CONTENT_WIDTHS, type View } from '../settings'
 import { EditView } from './EditView'
 import { ReadView } from './ReadView'
@@ -54,19 +54,26 @@ export function App({ controller }: { controller: AppController }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [controller, panelOpen])
 
-  const textFont = fontStack(note?.textFont ?? settings.textFont)
+  const textRef = note?.textFont ?? settings.textFont
+  const textFont = fontStack(textRef)
   const codeFont = fontStack(settings.codeFont, THEME_MONO_STACK)
+  const textWeight = fontWeight(textRef)
+  const codeWeight = fontWeight(settings.codeFont)
   const style = {
     '--reader-text-font': textFont,
     '--reader-code-font': codeFont,
     '--reader-edit-font': settings.monospaceEditing ? codeFont : textFont,
+    '--reader-text-weight': String(textWeight),
+    '--reader-code-weight': String(codeWeight),
+    '--reader-edit-weight': String(settings.monospaceEditing ? codeWeight : textWeight),
     '--reader-font-size': `${settings.fontSize}px`,
     '--reader-line-height': String(settings.lineHeight),
     '--reader-width': CONTENT_WIDTHS[settings.width],
   }
+  const classes = ['app', state.ready && 'is-ready', textWeight >= 600 && 'is-bold-text'].filter(Boolean).join(' ')
 
   return (
-    <div class={`app${state.ready ? ' is-ready' : ''}`} style={style}>
+    <div class={classes} style={style}>
       <div ref={toolbarRef} class="toolbar-host">
         <Toolbar
           view={view}

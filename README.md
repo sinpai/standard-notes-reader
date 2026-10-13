@@ -42,7 +42,7 @@ are already the smallest, so prefer them for large fonts.
 **Why fonts have to be added by name:** Standard Notes runs plugins in a sandboxed iframe without
 `allow-same-origin`. That blocks the Local Font Access API, so a plugin cannot list installed fonts (and has no local
 storage either). The editor suggests installed fonts by checking a list of popular ones, and any other installed font
-can be added by typing its family name — for example "Literaturnaya 20", not the file name "Literaturnaya20-Regular"
+can be added by typing its family name — for example "Georgia", not the file name "Georgia-Regular"
 (the editor suggests the family name when it recognizes one).
 
 **Why a font file can be rejected:** browsers check every font with a strict validator, the

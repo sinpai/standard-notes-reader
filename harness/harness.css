@@ -103,3 +103,8 @@ iframe {
   border-radius: 8px;
   background: #ffffff;
 }
+
+.buttons button[aria-pressed='true'] {
+  background: #dcdce2;
+  font-weight: 600;
+}

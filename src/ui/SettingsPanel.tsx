@@ -130,6 +130,18 @@ export function SettingsPanel({ controller, state, onClose }: Props) {
               onChange={(defaultView) => controller.updateSettings({ defaultView })}
             />
           </Field>
+          <label class="checkbox">
+            <input
+              type="checkbox"
+              checked={settings.rememberReadingPosition}
+              onChange={(event) => controller.updateSettings({ rememberReadingPosition: event.currentTarget.checked })}
+            />
+            Remember where I stopped reading
+          </label>
+          <p class="hint checkbox-hint">
+            Saved in each note, so it works on all your devices. Standard Notes counts the save as an edit, so the
+            note's modified date changes. Locked notes are not remembered.
+          </p>
         </section>
 
         <ImportedFonts

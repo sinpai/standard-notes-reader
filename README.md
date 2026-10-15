@@ -10,6 +10,8 @@ devices, phones included.
 
 - **Edit** and **Read** views. Read renders Markdown (GitHub-flavored, single line breaks kept). Toggle with
   <kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd>.
+- **Remembers where you stopped reading**: the Read view reopens each note at the paragraph where you left off, on
+  all your devices, even with another screen size or font. See [Reading positions](#reading-positions).
 - **Installed fonts**: use any font installed on the device by name. The editor detects which popular fonts are
   installed and tells you whether a font is available on the current device.
 - **Imported fonts**: TTF, OTF, WOFF and WOFF2 files. Family, weight, italic and variable-weight ranges are read
@@ -105,8 +107,9 @@ npm run typecheck
 ```
 
 `harness.html` stands in for Standard Notes. It hosts the editor in an iframe with the same sandbox flags as the app
-and implements the host side of the plugin protocol. It includes sample notes, themes (including the app's real
-Midnight theme), mobile messaging, locking and simulated edits from another device. Font files you put in
+and implements the host side of the plugin protocol. It includes sample notes (one book-length, for reading
+positions), themes (including the app's real Midnight theme), mobile messaging, locking, history previews (read-only
+copies that may not save) and simulated edits from another device. Font files you put in
 `harness/fonts/` (git-ignored) can be seeded into the plugin data. To test the production build in the harness, run
 `npm run preview` and open `harness.html?editor=http://localhost:4173/index.html`.
 
@@ -131,6 +134,27 @@ not forward keyboard shortcuts. The bridge follows the protocol of relay 2.3.2, 
   Besides Standard Notes themes, the only files it loads are its built-in fonts, from next to `index.html`.
 - Rendered Markdown is sanitized with DOMPurify. Inline styles are removed so notes always use your fonts.
 - Fonts stay inside Standard Notes' encrypted sync.
+
+## Reading positions
+
+The Read view remembers the paragraph (or heading, list, ...) at the top of the screen, and how far into it you
+were. When a note opens in Read view, or the first time you switch it to Read, it scrolls back there and holds the
+spot while fonts and images finish loading.
+
+The position is stored in the note itself, in data only this plugin uses, so it syncs with the note to every
+device. A plugin cannot store anything on the device, and keeping positions in the plugin's settings instead would
+let a note left open on one device overwrite positions (and font changes) saved on another. Standard Notes treats
+every save as an edit, so:
+
+- The note's modified date changes when you read it; with notes sorted by *Date modified*, it moves to the top.
+- Standard Notes keeps a copy in the note's history when a note changes after 5 minutes without changes (24 hours on
+  the free plan), so usually one extra entry per reading session.
+- Each save syncs the whole note. Saves happen 2 seconds after you stop scrolling, only when you moved at least half
+  a screen, and at most every 15 seconds (less often for very large notes: about 10 KB per second at most). Hiding
+  the app saves right away.
+
+Locked notes are not remembered: Standard Notes refuses saves from plugins there. Old versions shown from the note's
+history are never saved either. To turn the feature off, untick **Aa → Remember where I stopped reading**.
 
 ## Good to know
 

@@ -23,6 +23,11 @@ export interface ContextItem {
   clientData?: Record<string, unknown>
   /** True when the update only reflects a sync round-trip of our own save. */
   isMetadataUpdate?: boolean
+  /**
+   * When the server last saved the note: a Date, or an ISO string on mobile. 1 January 1970 for
+   * notes that never synced, and for copies Standard Notes shows read-only (note history).
+   */
+  updated_at?: unknown
   [key: string]: unknown
 }
 

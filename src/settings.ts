@@ -13,6 +13,8 @@ export interface Settings {
   lineHeight: number
   width: ContentWidth
   defaultView: View
+  /** Saves where the reader stopped in each note's Read view, and returns there. */
+  rememberReadingPosition: boolean
   /** Installed fonts the user added by name, offered in the font pickers. */
   installedFonts: string[]
 }
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lineHeight: 1.6,
   width: 'medium',
   defaultView: 'edit',
+  rememberReadingPosition: true,
   installedFonts: [],
 }
 
@@ -53,6 +56,7 @@ export function parseSettings(value: unknown): Settings {
     lineHeight: clampNumber(raw.lineHeight, LINE_HEIGHT_RANGE.min, LINE_HEIGHT_RANGE.max, DEFAULT_SETTINGS.lineHeight),
     width: typeof raw.width === 'string' && raw.width in CONTENT_WIDTHS ? (raw.width as ContentWidth) : DEFAULT_SETTINGS.width,
     defaultView: raw.defaultView === 'read' ? 'read' : 'edit',
+    rememberReadingPosition: raw.rememberReadingPosition !== false,
     installedFonts: Array.isArray(raw.installedFonts)
       ? uniqueNames(raw.installedFonts.filter((name): name is string => typeof name === 'string'))
       : [],

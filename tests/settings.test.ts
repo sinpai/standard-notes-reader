@@ -9,6 +9,11 @@ describe('parseSettings', () => {
     expect(parseSettings(undefined)).toEqual(DEFAULT_SETTINGS)
   })
 
+  it('remembers reading positions unless turned off', () => {
+    expect(parseSettings({}).rememberReadingPosition).toBe(true)
+    expect(parseSettings({ rememberReadingPosition: false }).rememberReadingPosition).toBe(false)
+  })
+
   it('keeps valid values and repairs invalid ones', () => {
     const settings = parseSettings({
       textFont: { type: 'installed', family: '  Iosevka ' },

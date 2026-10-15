@@ -439,6 +439,8 @@ input[type='checkbox'] {
 }
 
 .panel-body {
+  /* Contains the hidden file input, which would otherwise make the whole page scrollable. */
+  position: relative;
   flex: 1;
   overflow-y: auto;
   padding: 0 16px 32px;
@@ -484,6 +486,11 @@ input[type='checkbox'] {
   align-items: center;
   gap: 8px;
   margin: 0 0 14px;
+}
+
+/* An explanation under a checkbox, lined up with its label. */
+.checkbox-hint {
+  margin: -10px 0 14px 21px;
 }
 
 .hint {

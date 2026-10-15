@@ -122,4 +122,41 @@ describe('NoteSession', () => {
     session.receive(note('x', { content: { ...note('x').content, spellcheck: false } }))
     expect(session.spellcheck).toBe(false)
   })
+
+  describe('reading position', () => {
+    const position = { block: 7, offset: 0.4, text: 'Chapter two', ratio: 0.35 }
+    const synced = (extra: Partial<ContextItem> = {}, locked = false) =>
+      note('Text', { updated_at: '2026-10-01T10:00:00.000Z', ...extra }, locked)
+
+    it('saves the position in the plugin data of the note, next to other data, without flushing', () => {
+      session.receive(synced({ clientData: { textFont: { type: 'theme' } } }))
+      expect(session.setReadingPosition(position)).toBe(true)
+      expect(scheduler.flushes).toBe(0)
+
+      const saved = scheduler.runSave()
+      expect(saved?.clientData).toEqual({ textFont: { type: 'theme' }, readingPosition: position })
+      expect(saved?.content.text).toBe('Text')
+    })
+
+    it('reads the saved position', () => {
+      // The desktop and web apps send dates as Date objects, the mobile app as strings.
+      session.receive(synced({ updated_at: new Date('2026-10-01'), clientData: { readingPosition: position } }))
+      expect(session.readingPosition).toEqual(position)
+      expect(session.canSaveReadingPosition).toBe(true)
+    })
+
+    it('does not save in locked notes', () => {
+      session.receive(synced({}, true))
+      expect(session.setReadingPosition(position)).toBe(false)
+      expect(scheduler.build).toBeUndefined()
+    })
+
+    it('does not save in read-only copies from note history, nor in notes that never synced', () => {
+      for (const updated_at of ['1970-01-01T00:00:00.000Z', new Date(0), undefined]) {
+        session.receive({ ...synced({ updated_at }), uuid: `copy-${String(updated_at)}` })
+        expect(session.setReadingPosition(position)).toBe(false)
+      }
+      expect(scheduler.build).toBeUndefined()
+    })
+  })
 })

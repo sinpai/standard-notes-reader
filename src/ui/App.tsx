@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { AppController } from '../app/AppController'
 import { THEME_MONO_STACK, fontStack, fontWeight } from '../fonts/stack'
+import { minSaveIntervalFor } from '../note/readingPosition'
 import { CONTENT_WIDTHS, type View } from '../settings'
 import { EditView } from './EditView'
 import { ReadView } from './ReadView'
@@ -15,23 +16,27 @@ export function App({ controller }: { controller: AppController }) {
   const toolbarRef = useRef<HTMLDivElement>(null)
   const mainRef = useRef<HTMLElement>(null)
   /** Relative scroll position, carried over when switching between Edit and Read. */
-  const scrollRatio = useRef(0)
+  const scrollRatio = useRef<{ uuid?: string; value: number }>({ value: 0 })
+  /** The note whose Read view has opened, so its saved reading position was already used. */
+  const openedUuid = useRef<string | undefined>(undefined)
 
   const scroller = (): HTMLElement | null => mainRef.current?.querySelector('textarea') ?? mainRef.current
+  const ratioFor = (uuid: string | undefined) => (scrollRatio.current.uuid === uuid ? scrollRatio.current.value : 0)
 
   const switchView = (next: View) => {
     const element = scroller()
     if (element) {
       const max = element.scrollHeight - element.clientHeight
-      scrollRatio.current = max > 0 ? element.scrollTop / max : 0
+      scrollRatio.current = { uuid: controller.getState().note?.uuid, value: max > 0 ? element.scrollTop / max : 0 }
     }
     controller.setView(next)
   }
 
   useLayoutEffect(() => {
-    const element = scroller()
+    // The Read view positions itself.
+    const element = view === 'edit' ? scroller() : null
     if (element) {
-      element.scrollTop = scrollRatio.current * (element.scrollHeight - element.clientHeight)
+      element.scrollTop = ratioFor(note?.uuid) * (element.scrollHeight - element.clientHeight)
     }
   }, [view])
 
@@ -72,6 +77,13 @@ export function App({ controller }: { controller: AppController }) {
   }
   const classes = ['app', state.ready && 'is-ready', textWeight >= 600 && 'is-bold-text'].filter(Boolean).join(' ')
 
+  // The first time a note's Read view opens, go back to where the reader stopped, unless they
+  // already scrolled somewhere else in Edit view.
+  const remember = settings.rememberReadingPosition
+  const readRatio = ratioFor(note?.uuid)
+  const restorePosition =
+    remember && note && openedUuid.current !== note.uuid && readRatio === 0 ? note.readingPosition : undefined
+
   return (
     <div class={classes} style={style}>
       <div ref={toolbarRef} class="toolbar-host">
@@ -90,7 +102,17 @@ export function App({ controller }: { controller: AppController }) {
           (view === 'edit' ? (
             <EditView controller={controller} revision={note.revision} locked={note.locked} spellcheck={note.spellcheck} />
           ) : (
-            <ReadView text={controller.noteText} />
+            <ReadView
+              key={note.uuid}
+              text={controller.noteText}
+              initialRatio={readRatio}
+              restorePosition={restorePosition}
+              onOpen={() => (openedUuid.current = note.uuid)}
+              onSavePosition={
+                remember ? (position, immediate) => controller.saveReadingPosition(note.uuid, position, immediate) : undefined
+              }
+              saveIntervalMs={minSaveIntervalFor(controller.noteText.length)}
+            />
           ))}
       </main>
       {panelOpen && <SettingsPanel controller={controller} state={state} onClose={closePanel} />}

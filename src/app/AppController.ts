@@ -12,6 +12,7 @@ import { FontRegistry } from '../fonts/registry'
 import { sameFontRef } from '../fonts/stack'
 import type { FontRef, StoredFontFace } from '../fonts/types'
 import { NoteSession } from '../note/NoteSession'
+import type { ReadingPosition } from '../note/readingPosition'
 import { DEFAULT_SETTINGS, parseSettings, uniqueNames, type Settings, type View } from '../settings'
 
 const SETTINGS_KEY = 'settings'
@@ -25,6 +26,8 @@ export interface NoteState {
   spellcheck: boolean
   /** Font chosen for this note only. */
   textFont?: FontRef
+  /** Where the reader stopped in Read view last time. */
+  readingPosition?: ReadingPosition
   /** Increments whenever the text changes outside the editor and must be re-applied. */
   revision: number
 }
@@ -128,6 +131,19 @@ export class AppController {
     void this.loadFontsInUse()
   }
 
+  /**
+   * Saves where the reader stopped in a note. Ignored when the setting is off or the note has
+   * changed since. `immediate` sends it right away instead of with the next coalesced save.
+   */
+  saveReadingPosition(uuid: string, position: ReadingPosition, immediate = false): void {
+    if (!this.state.settings.rememberReadingPosition || uuid !== this.session.uuid) {
+      return
+    }
+    if (this.session.setReadingPosition(position) && immediate) {
+      this.bridge.flush()
+    }
+  }
+
   async importFontFiles(files: File[]): Promise<ImportResult> {
     const result: ImportResult = { imported: [], repaired: [], errors: [] }
     let library = this.state.library
@@ -206,6 +222,7 @@ export class AppController {
       locked: this.session.locked,
       spellcheck: this.session.spellcheck,
       textFont: this.session.textFont,
+      readingPosition: this.session.readingPosition,
       revision: (previous?.revision ?? 0) + (update === 'metadata-changed' ? 0 : 1),
     }
 

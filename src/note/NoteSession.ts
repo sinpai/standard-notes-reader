@@ -2,6 +2,7 @@ import { SN_APP_DOMAIN, type ContextItem } from '../bridge/types'
 import { parseFontRef } from '../fonts/stack'
 import type { FontRef } from '../fonts/types'
 import { makePreview } from './preview'
+import { parseReadingPosition, type ReadingPosition } from './readingPosition'
 
 export type NoteUpdate =
   /** A different note was loaded. */
@@ -47,6 +48,19 @@ export class NoteSession {
     return parseFontRef({ ...this.item?.clientData, ...this.pendingClientData }.textFont)
   }
 
+  /** Where the reader stopped in this note's Read view, if known. */
+  get readingPosition(): ReadingPosition | undefined {
+    return parseReadingPosition({ ...this.item?.clientData, ...this.pendingClientData }.readingPosition)
+  }
+
+  /**
+   * Whether the reading position can be saved. Standard Notes refuses saves to locked notes, and
+   * shows an error when a read-only copy (note history) tries to save.
+   */
+  get canSaveReadingPosition(): boolean {
+    return this.item !== undefined && !this.locked && hasSynced(this.item)
+  }
+
   receive(item: ContextItem): NoteUpdate {
     const isNewNote = this.item?.uuid !== item.uuid
     this.item = item
@@ -87,6 +101,16 @@ export class NoteSession {
     this.scheduler.flush()
   }
 
+  /** Saves where the reader stopped. Returns false when the note cannot be saved. */
+  setReadingPosition(position: ReadingPosition): boolean {
+    if (!this.canSaveReadingPosition) {
+      return false
+    }
+    this.pendingClientData = { ...this.pendingClientData, readingPosition: position }
+    this.scheduler.scheduleSave(this.buildSave)
+    return true
+  }
+
   private readonly buildSave = (): ContextItem | undefined => {
     const item = this.item
     if (!item || this.locked) {
@@ -109,4 +133,10 @@ export class NoteSession {
     this.item = next
     return next
   }
+}
+
+function hasSynced(item: ContextItem): boolean {
+  const value = item.updated_at
+  const time = value instanceof Date ? value.getTime() : typeof value === 'string' ? Date.parse(value) : Number.NaN
+  return time > 0
 }

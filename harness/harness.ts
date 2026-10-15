@@ -72,9 +72,33 @@ const font = await importFontFile(file, library)
 
 const SAMPLE_NOTES: HarnessNote[] = [
   sampleNote('note-welcome', 'Welcome', WELCOME_TEXT),
+  sampleNote('note-long', 'Long read', longReadText()),
   sampleNote('note-plain', 'Plain text', 'Shopping list\napples\noat milk\ncoffee beans\n\nCall the bike shop before Friday.'),
   sampleNote('note-locked', 'Locked note', 'Editing is disabled for this note.', true),
 ]
+
+/** A book-like note for trying out reading positions: 12 chapters of 8 numbered paragraphs. */
+function longReadText(): string {
+  const sentences = [
+    'The lamps along the embankment were lit early that evening.',
+    'Nobody in the house could remember who had first suggested the journey.',
+    'Rain had followed them from the station, patient and unhurried.',
+    'She kept the letter folded inside the cover of an old atlas.',
+    'By midnight the river had risen to the second step of the pier.',
+    'He wrote down every name he heard, in case it mattered later.',
+    'The ferry left without them, its horn swallowed by the fog.',
+  ]
+  const chapters: string[] = ['# The Long Read']
+  for (let chapter = 1; chapter <= 12; chapter++) {
+    chapters.push(`## Chapter ${chapter}`)
+    for (let paragraph = 1; paragraph <= 8; paragraph++) {
+      const length = 3 + ((chapter + paragraph) % 4)
+      const body = Array.from({ length }, (_, i) => sentences[(chapter * 3 + paragraph + i) % sentences.length]).join(' ')
+      chapters.push(`**${chapter}.${paragraph}** ${body}`)
+    }
+  }
+  return chapters.join('\n\n')
+}
 
 const editorUrl = new URLSearchParams(location.search).get('editor') ?? '/index.html'
 const iframe = document.getElementById('editor') as HTMLIFrameElement
@@ -84,6 +108,10 @@ let state = loadState()
 let sessionKey: string | undefined
 let streamMessage: Message | undefined
 let pendingLoad = false
+/** Shows the note like Standard Notes' history preview: a read-only copy that may not save. */
+let historyPreview = false
+/** Counters for scripted checks; the message log only keeps the latest entries. */
+const stats = { saves: 0, alerts: 0 }
 
 function sampleNote(uuid: string, title: string, text: string, locked = false): HarnessNote {
   const now = new Date().toISOString()
@@ -143,11 +171,14 @@ function reply(original: Message, data: Record<string, unknown>): void {
 
 function itemForEditor(note: HarnessNote, isMetadataUpdate: boolean): Record<string, unknown> {
   const content = structuredClone(note.content)
+  // History previews are unsaved template copies: a new uuid, and never synced.
+  const updatedAt = historyPreview ? new Date(0).toISOString() : note.updated_at
   return {
-    uuid: note.uuid,
+    uuid: historyPreview ? `preview-${note.uuid}` : note.uuid,
     content_type: note.content_type,
     created_at: note.created_at,
-    updated_at: note.updated_at,
+    // The desktop and web apps send Date objects; the mobile app sends JSON, so strings.
+    updated_at: state.environment === 'mobile' ? updatedAt : new Date(updatedAt),
     isMetadataUpdate,
     content: { ...content, spellcheck: content.spellcheck ?? true },
     clientData: content.appData[COMPONENTS_DOMAIN]?.[COMPONENT_UUID] ?? {},
@@ -200,6 +231,12 @@ window.addEventListener('message', (event) => {
   if (!message || message.sessionKey !== sessionKey) {
     return
   }
+  if (historyPreview && ['save-items', 'set-component-data', 'create-item', 'create-items'].includes(message.action)) {
+    // Standard Notes shows an alert and drops the message.
+    stats.alerts++
+    log(`← ${message.action} ALERT: "trying to save, but it is in a locked state"`)
+    return
+  }
 
   switch (message.action) {
     case 'stream-context-item':
@@ -237,9 +274,11 @@ function handleSave(message: Message): void {
     }
     if (note.content.appData[APP_DOMAIN]?.locked) {
       // The app shows an alert and never replies.
+      stats.alerts++
       log('← save-items REJECTED: note is locked')
       return
     }
+    stats.saves++
     note.content = structuredClone(item.content) as HarnessNote['content']
     if (item.clientData) {
       note.content.appData[COMPONENTS_DOMAIN] = {
@@ -279,7 +318,12 @@ function renderSidebar(): void {
       const button = document.createElement('button')
       button.type = 'button'
       const locked = note.content.appData[APP_DOMAIN]?.locked ? ' 🔒' : ''
-      button.textContent = `${note.content.title}${locked}`
+      const clientData = note.content.appData[COMPONENTS_DOMAIN]?.[COMPONENT_UUID] as
+        | { readingPosition?: { block: number; ratio: number } }
+        | undefined
+      const position = clientData?.readingPosition
+      const read = position ? ` · read to ${Math.round(position.ratio * 100)}% (block ${position.block})` : ''
+      button.textContent = `${note.content.title}${locked}${read}`
       button.setAttribute('aria-current', String(note.uuid === state.selectedUuid))
       button.addEventListener('click', () => {
         state.selectedUuid = note.uuid
@@ -331,6 +375,14 @@ function setupControls(): void {
 
   document.getElementById('reload')!.addEventListener('click', loadEditor)
 
+  const preview = document.getElementById('history-preview') as HTMLButtonElement
+  preview.addEventListener('click', () => {
+    historyPreview = !historyPreview
+    preview.setAttribute('aria-pressed', String(historyPreview))
+    log(historyPreview ? 'showing a history preview (read-only copy)' : 'showing the note')
+    loadEditor()
+  })
+
   document.getElementById('reset')!.addEventListener('click', () => {
     localStorage.removeItem(STORAGE_KEY)
     state = loadState()
@@ -351,6 +403,7 @@ function setupControls(): void {
 Object.assign(window, {
   harness: {
     getState: () => state,
+    stats: () => ({ ...stats }),
     reload: loadEditor,
     async seedFontFromUrl(url: string) {
       const response = await fetch(url)
@@ -360,6 +413,10 @@ Object.assign(window, {
     selectNote(uuid: string) {
       state.selectedUuid = uuid
       persist()
+      loadEditor()
+    },
+    setHistoryPreview(on: boolean) {
+      historyPreview = on
       loadEditor()
     },
   },

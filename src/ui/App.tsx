@@ -8,12 +8,15 @@ import { ReadView } from './ReadView'
 import { SettingsPanel } from './SettingsPanel'
 import { Toolbar } from './Toolbar'
 import { useAppState } from './useAppState'
+import { useAutoHide } from './useAutoHide'
 
 export function App({ controller }: { controller: AppController }) {
   const state = useAppState(controller)
   const { settings, note, view } = state
   const [panelOpen, setPanelOpen] = useState(false)
-  const toolbarRef = useRef<HTMLDivElement>(null)
+  const fontsButtonRef = useRef<HTMLButtonElement>(null)
+  /** Set when the panel closes, to give focus back to the "Aa" button. */
+  const restoreFocus = useRef(false)
   const mainRef = useRef<HTMLElement>(null)
   /** Relative scroll position, carried over when switching between Edit and Read. */
   const scrollRatio = useRef<{ uuid?: string; value: number }>({ value: 0 })
@@ -41,9 +44,23 @@ export function App({ controller }: { controller: AppController }) {
   }, [view])
 
   const closePanel = () => {
+    restoreFocus.current = true
     setPanelOpen(false)
-    toolbarRef.current?.querySelector<HTMLButtonElement>('.toolbar-fonts')?.focus()
   }
+
+  useEffect(() => {
+    // Only once the panel is gone: on small screens the toolbar is hidden while it is open.
+    if (!panelOpen && restoreFocus.current) {
+      restoreFocus.current = false
+      fontsButtonRef.current?.focus()
+    }
+  }, [panelOpen])
+
+  const autoHide = useAutoHide()
+  // Switching views, e.g. with the keyboard shortcut, shows where you are.
+  useEffect(() => autoHide.reveal(), [view])
+  // Problems stay in sight, and so does the toolbar while the panel it opens is shown.
+  const toolbarPinned = panelOpen || state.saveStatus === 'error' || state.fontErrors.length > 0
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -75,7 +92,9 @@ export function App({ controller }: { controller: AppController }) {
     '--reader-line-height': String(settings.lineHeight),
     '--reader-width': CONTENT_WIDTHS[settings.width],
   }
-  const classes = ['app', state.ready && 'is-ready', textWeight >= 600 && 'is-bold-text'].filter(Boolean).join(' ')
+  const classes = ['app', state.ready && 'is-ready', textWeight >= 600 && 'is-bold-text', panelOpen && 'is-panel-open']
+    .filter(Boolean)
+    .join(' ')
 
   // The first time a note's Read view opens, go back to where the reader stopped, unless they
   // already scrolled somewhere else in Edit view.
@@ -86,17 +105,18 @@ export function App({ controller }: { controller: AppController }) {
 
   return (
     <div class={classes} style={style}>
-      <div ref={toolbarRef} class="toolbar-host">
-        <Toolbar
-          view={view}
-          onViewChange={switchView}
-          panelOpen={panelOpen}
-          onTogglePanel={() => (panelOpen ? closePanel() : setPanelOpen(true))}
-          saveStatus={state.saveStatus}
-          locked={note?.locked ?? false}
-          fontErrors={state.fontErrors}
-        />
-      </div>
+      {/* First in the document so it comes first when tabbing: Tab inside the editor inserts a tab. */}
+      <Toolbar
+        view={view}
+        onViewChange={switchView}
+        panelOpen={panelOpen}
+        onTogglePanel={() => (panelOpen ? closePanel() : setPanelOpen(true))}
+        saveStatus={state.saveStatus}
+        locked={note?.locked ?? false}
+        fontErrors={state.fontErrors}
+        hidden={autoHide.hidden && !toolbarPinned}
+        fontsButtonRef={fontsButtonRef}
+      />
       <main ref={mainRef} class={`content content-${view}`}>
         {note &&
           (view === 'edit' ? (

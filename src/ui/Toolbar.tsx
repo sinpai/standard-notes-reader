@@ -1,3 +1,4 @@
+import type { Ref } from 'preact'
 import type { SaveStatus } from '../bridge/types'
 import type { View } from '../settings'
 import { Segmented } from './Segmented'
@@ -13,6 +14,10 @@ interface Props {
   saveStatus: SaveStatus
   locked: boolean
   fontErrors: string[]
+  /** Hidden while the reader reads or types. Comes back when it gets keyboard focus. */
+  hidden: boolean
+  /** The "Aa" button, so focus can return to it when the panel closes. */
+  fontsButtonRef: Ref<HTMLButtonElement>
 }
 
 const VIEW_OPTIONS: Array<{ value: View; label: string }> = [
@@ -20,7 +25,18 @@ const VIEW_OPTIONS: Array<{ value: View; label: string }> = [
   { value: 'read', label: 'Read' },
 ]
 
-export function Toolbar({ view, onViewChange, panelOpen, onTogglePanel, saveStatus, locked, fontErrors }: Props) {
+/** Controls that float over the bottom of the note, so the text can use the whole height. */
+export function Toolbar({
+  view,
+  onViewChange,
+  panelOpen,
+  onTogglePanel,
+  saveStatus,
+  locked,
+  fontErrors,
+  hidden,
+  fontsButtonRef,
+}: Props) {
   let status: { text: string; tone: 'error' | 'warning' | 'neutral' } | undefined
   if (saveStatus === 'error') {
     status = { text: 'Changes not saved yet — Standard Notes is not responding', tone: 'error' }
@@ -31,23 +47,26 @@ export function Toolbar({ view, onViewChange, panelOpen, onTogglePanel, saveStat
   }
 
   return (
-    <header class="toolbar">
-      <div title={`Switch between editing and reading (${TOGGLE_VIEW_SHORTCUT})`}>
-        <Segmented label="View" options={VIEW_OPTIONS} value={view} onChange={onViewChange} />
-      </div>
+    <div class={hidden ? 'toolbar is-hidden' : 'toolbar'}>
       <div class="toolbar-status" role="status" aria-live="polite">
         {status && <span class={`status status-${status.tone}`}>{status.text}</span>}
       </div>
-      <button
-        type="button"
-        class="icon-button toolbar-fonts"
-        aria-label="Fonts and layout"
-        aria-expanded={panelOpen}
-        title="Fonts and layout"
-        onClick={onTogglePanel}
-      >
-        Aa
-      </button>
-    </header>
+      <div class="toolbar-bar">
+        <div title={`Switch between editing and reading (${TOGGLE_VIEW_SHORTCUT})`}>
+          <Segmented label="View" options={VIEW_OPTIONS} value={view} onChange={onViewChange} />
+        </div>
+        <button
+          ref={fontsButtonRef}
+          type="button"
+          class="icon-button toolbar-fonts"
+          aria-label="Fonts and layout"
+          aria-expanded={panelOpen}
+          title="Fonts and layout"
+          onClick={onTogglePanel}
+        >
+          Aa
+        </button>
+      </div>
+    </div>
   )
 }

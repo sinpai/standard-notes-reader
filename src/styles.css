@@ -18,11 +18,23 @@
   --reader-ui-font: var(--sn-stylekit-sans-serif-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   --reader-radius: 6px;
   --reader-control-height: 30px;
+  --reader-panel-width: min(380px, 100%);
+  /* The floating toolbar: its distance from the bottom edge, and the strip of text it covers. */
+  --reader-toolbar-offset: calc(12px + env(safe-area-inset-bottom, 0px));
+  --reader-toolbar-space: calc(var(--reader-control-height) + 10px + var(--reader-toolbar-offset));
+  --reader-toolbar-bg: color-mix(in srgb, var(--reader-surface) 82%, transparent);
+  --reader-toolbar-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @media (pointer: coarse) {
   :root {
     --reader-control-height: 40px;
+  }
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+  :root {
+    --reader-toolbar-bg: var(--reader-surface);
   }
 }
 
@@ -70,32 +82,94 @@ body {
   height: 100%;
 }
 
-.toolbar-host {
-  flex: none;
+/* Controls float over the bottom of the note, so the text can use the whole height. */
+.toolbar {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: var(--reader-toolbar-offset);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 12px;
+  /* Only the bar itself catches clicks; the text around it stays usable. */
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0s linear 0s;
 }
 
-.toolbar {
+/* Beside the settings panel: centred in the space that is left. */
+.is-panel-open .toolbar {
+  right: var(--reader-panel-width);
+}
+
+/* No room beside the panel, which has its own close button. */
+@media (max-width: 600px) {
+  .is-panel-open .toolbar {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+  }
+}
+
+.toolbar-bar,
+.toolbar-status {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Out of the way while reading or typing; keyboard focus brings it back. */
+.toolbar.is-hidden:not(:focus-within) :is(.toolbar-bar, .toolbar-status) {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar.is-hidden:not(:focus-within) :is(.toolbar-bar, .toolbar-status) {
+    transform: none;
+  }
+}
+
+.toolbar-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--reader-border);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--reader-border);
+  border-radius: 999px;
+  background: var(--reader-toolbar-bg);
+  box-shadow: var(--reader-toolbar-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
+  pointer-events: auto;
+}
+
+.toolbar-bar .segmented,
+.toolbar-bar .segmented button,
+.toolbar-bar .icon-button {
+  border-radius: 999px;
 }
 
 .toolbar-status {
-  flex: 1;
-  min-width: 0;
-  text-align: right;
+  max-width: 100%;
+  text-align: center;
 }
 
+/* Problems and the locked state, shown just above the bar. */
 .status {
   display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
+  max-width: 34em;
+  margin-bottom: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--reader-border);
+  border-radius: 12px;
+  background: var(--reader-toolbar-bg);
+  box-shadow: var(--reader-toolbar-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
   color: var(--reader-muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .status-error {
@@ -120,6 +194,8 @@ body {
 .content-read {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Page Down and Space stop above the toolbar, so no line is skipped behind it. */
+  scroll-padding-bottom: var(--reader-toolbar-space);
 }
 
 /* Edit view */
@@ -139,7 +215,9 @@ body {
   font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
   /* Centers a column of --reader-width while keeping the scrollbar at the edge. */
-  padding: 24px max(20px, calc((100% - var(--reader-width)) / 2)) 40vh;
+  padding: 24px max(20px, calc((100% - var(--reader-width)) / 2)) max(40vh, calc(var(--reader-toolbar-space) + 24px));
+  /* Keeps the line being typed clear of the toolbar. */
+  scroll-padding-bottom: calc(var(--reader-toolbar-space) + 20px);
   tab-size: 4;
   font-variant-ligatures: contextual;
 }
@@ -154,7 +232,8 @@ body {
 .reader-empty {
   max-width: calc(var(--reader-width) + 40px);
   margin: 0 auto;
-  padding: 24px 20px 64px;
+  /* Room to scroll the end of the note above the toolbar. */
+  padding: 24px 20px calc(var(--reader-toolbar-space) + 40px);
   font-family: var(--reader-text-font);
   font-weight: var(--reader-text-weight, 400);
   font-size: var(--reader-font-size);
@@ -412,7 +491,7 @@ input[type='checkbox'] {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  width: min(380px, 100%);
+  width: var(--reader-panel-width);
   border-left: 1px solid var(--reader-border);
   background: var(--reader-surface);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.12);

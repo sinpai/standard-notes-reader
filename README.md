@@ -9,7 +9,9 @@ devices, phones included.
 ## Features
 
 - **Edit** and **Read** views. Read renders Markdown (GitHub-flavored, single line breaks kept). Toggle with
-  <kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd>.
+  <kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd>. The controls float at the bottom of the editor, over the text, so the note
+  uses the whole height; the end of a note scrolls clear of them, and so does the line you are typing. They hide
+  while you read on or type, and come back when you scroll up, move the mouse, click or tap.
 - **Remembers where you stopped reading**: the Read view reopens each note at the paragraph where you left off, on
   all your devices, even with another screen size or font. See [Reading positions](#reading-positions).
 - **Installed fonts**: use any font installed on the device by name. The editor detects which popular fonts are
@@ -64,7 +66,7 @@ or fontTools), or used as an installed font by name.
    **Install** and confirm.
 3. Open a note, choose **Change note type → Custom Font Reader**. The first time, Standard Notes asks whether the
    plugin may access the current note; allow it.
-4. Click **Aa** in the editor toolbar to choose fonts.
+4. Click **Aa** in the bar at the bottom of the editor to choose fonts (move the mouse or tap if the bar has hidden).
 
 Switching a Super note to this editor converts it to Markdown (Standard Notes shows a conversion dialog first).
 Switching back converts the Markdown to Super.

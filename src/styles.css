@@ -456,6 +456,14 @@ input[type='checkbox'] {
   font-size: 15px;
 }
 
+.toolbar-focus svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .toolbar-fonts[aria-expanded='true'] {
   background: var(--reader-surface-alt);
 }

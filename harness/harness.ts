@@ -111,7 +111,24 @@ let pendingLoad = false
 /** Shows the note like Standard Notes' history preview: a read-only copy that may not save. */
 let historyPreview = false
 /** Counters for scripted checks; the message log only keeps the latest entries. */
-const stats = { saves: 0, alerts: 0 }
+const stats = { saves: 0, alerts: 0, focusToggles: 0 }
+
+/** The platform names Standard Notes registers editors with. */
+function platformName(): string {
+  return state.environment === 'mobile' ? 'ios' : state.environment === 'desktop' ? 'mac-desktop' : 'mac-web'
+}
+
+/** Like Standard Notes: ⌘⇧F (Ctrl+Shift+F off macOS) hides the sidebar and frames the editor. */
+function handleShortcut(data: Record<string, unknown>): void {
+  const mac = platformName().startsWith('mac-')
+  const primary = mac ? data.metaKey === true && data.ctrlKey !== true : data.ctrlKey === true && data.metaKey !== true
+  const isFocusMode = String(data.key).toLowerCase() === 'f' && primary && data.shiftKey === true && data.altKey !== true
+  if (isFocusMode) {
+    const on = document.body.classList.toggle('focus-mode')
+    stats.focusToggles++
+    log(`focus mode ${on ? 'on' : 'off'}`)
+  }
+}
 
 function sampleNote(uuid: string, title: string, text: string, locked = false): HarnessNote {
   const now = new Date().toISOString()
@@ -216,7 +233,7 @@ iframe.addEventListener('load', () => {
     data: {
       uuid: COMPONENT_UUID,
       environment: state.environment,
-      platform: state.environment === 'mobile' ? 'ios' : 'macos',
+      platform: platformName(),
       activeThemeUrls: themeUrls(),
     },
   })
@@ -258,6 +275,9 @@ window.addEventListener('message', (event) => {
       const data = message.data ?? {}
       const modifiers = ['metaKey', 'ctrlKey', 'altKey', 'shiftKey'].filter((key) => data[key]).map((key) => key.replace('Key', ''))
       log(`← ${message.action} ${[...modifiers, String(data.key)].join('+')}`)
+      if (message.action === 'key-down') {
+        handleShortcut(data)
+      }
       break
     }
     default:

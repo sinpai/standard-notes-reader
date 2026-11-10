@@ -14,6 +14,8 @@ devices, phones included.
   while you read on or type, and come back when you scroll up, move the mouse, click or tap.
 - **Remembers where you stopped reading**: the Read view reopens each note at the paragraph where you left off, on
   all your devices, even with another screen size or font. See [Reading positions](#reading-positions).
+- **Focus mode button**: turns on Standard Notes' focus mode, which hides the tags and notes columns, so the note
+  fills the window. See [Full screen](#full-screen).
 - **Installed fonts**: use any font installed on the device by name. The editor detects which popular fonts are
   installed and tells you whether a font is available on the current device.
 - **Imported fonts**: TTF, OTF, WOFF and WOFF2 files. Family, weight, italic and variable-weight ranges are read
@@ -62,8 +64,10 @@ or fontTools), or used as an installed font by name.
 
 1. Host the build somewhere reachable over HTTPS (see [Deploy](#deploy)). The plugin manifest is `ext.json`, next
    to `index.html`.
-2. In Standard Notes open **Preferences → Plugins → Install Custom Plugin**, paste the `ext.json` URL, choose
-   **Install** and confirm.
+2. In the Standard Notes desktop app open **Preferences → Plugins → Install Custom Plugin**, paste the `ext.json`
+   URL, choose **Install** and confirm. The plugin then syncs to your other devices. The web app at
+   app.standardnotes.com cannot install it: its security policy only lets it download plugin manifests from a few
+   Standard Notes addresses, and it requests them with cookies, which GitHub Pages and most static hosts do not allow.
 3. Open a note, choose **Change note type → Custom Font Reader**. The first time, Standard Notes asks whether the
    plugin may access the current note; allow it.
 4. Click **Aa** in the bar at the bottom of the editor to choose fonts (move the mouse or tap if the bar has hidden).
@@ -157,6 +161,19 @@ every save as an edit, so:
 
 Locked notes are not remembered: Standard Notes refuses saves from plugins there. Old versions shown from the note's
 history are never saved either. To turn the feature off, untick **Aa → Remember where I stopped reading**.
+
+## Full screen
+
+Plugins cannot go full screen: Standard Notes does not give their frame the permission (it only grants it to
+YouTube videos in Super notes). Standard Notes' own focus mode comes close, and the button with the two arrows in the
+bar turns it on and off, as <kbd>⌘⇧F</kbd> (<kbd>Ctrl+Shift+F</kbd> on Windows and Linux) does. Focus mode hides the
+tags and notes columns and the note's buttons (they come back when you point at the title), and dims the footer.
+On a Mac, also make the window full screen with <kbd>⌃⌘F</kbd> or **View → Toggle Full Screen**; that is a
+Standard Notes menu command, which plugins cannot use.
+
+Standard Notes does not tell plugins whether focus mode is on, so the button simply toggles it. Focus mode only
+changes anything on screens at least 768 px wide; phones already show a note full screen, so the button is not
+shown there.
 
 ## Good to know
 

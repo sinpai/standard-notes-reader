@@ -208,4 +208,17 @@ describe('ComponentBridge', () => {
     expect(keys).toHaveLength(1)
     expect(keys[0]!.data).toMatchObject({ key: 'f', code: 'KeyF', metaKey: true, shiftKey: true, keyboardModifier: 'Shift' })
   })
+
+  it('presses a shortcut in Standard Notes and releases the keys', () => {
+    expect(bridge.pressShortcut({ key: 'F', code: 'KeyF', metaKey: true, shiftKey: true })).toBe(false)
+    expect(postMessage).not.toHaveBeenCalled()
+
+    register()
+    expect(bridge.pressShortcut({ key: 'F', code: 'KeyF', metaKey: true, shiftKey: true })).toBe(true)
+    const keys = posted().filter((message) => message.action === 'key-down' || message.action === 'key-up')
+    expect(keys.map((message) => [message.action, message.data])).toEqual([
+      ['key-down', { key: 'F', code: 'KeyF', ctrlKey: false, metaKey: true, shiftKey: true, altKey: false }],
+      ['key-up', { key: 'F', code: 'KeyF', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }],
+    ])
+  })
 })

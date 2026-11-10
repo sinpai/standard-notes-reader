@@ -22,7 +22,7 @@ const importedFace: StoredFontFace = {
 }
 
 /** Creates a controller that Standard Notes has registered with the given plugin data. */
-function startController(componentData: Record<string, unknown>) {
+function startController(componentData: Record<string, unknown>, platform?: string) {
   const parent = new JSDOM('').window as unknown as Window
   const postMessage = vi.fn()
   parent.postMessage = postMessage as unknown as Window['postMessage']
@@ -35,7 +35,7 @@ function startController(componentData: Record<string, unknown>) {
         action: 'component-registered',
         sessionKey: 'session',
         componentData,
-        data: { environment: 'web' },
+        data: { environment: 'web', platform },
       },
     }),
   )
@@ -133,5 +133,28 @@ describe('AppController font import', () => {
     ;({ controller } = startController({ fonts: [importedFace] }))
     controller.useForAllNotes('fam1')
     expect(controller.getState().settings.textFont).toEqual({ type: 'imported', familyId: 'fam1' })
+  })
+})
+
+describe('AppController focus mode', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['mac-desktop', { metaKey: true, ctrlKey: false }],
+    ['windows-desktop', { metaKey: false, ctrlKey: true }],
+    // Standard Notes uses Ctrl on the iPad too.
+    ['ios', { metaKey: false, ctrlKey: true }],
+  ])('presses the focus mode shortcut for %s', (platform, modifiers) => {
+    vi.useFakeTimers()
+    const { controller, posted } = startController({}, platform)
+    expect(controller.getState().platform).toBe(platform)
+
+    controller.toggleFocusMode()
+    const [down] = posted('key-down')
+    expect(down!.data).toEqual({ key: 'F', code: 'KeyF', shiftKey: true, altKey: false, ...modifiers })
+    expect(posted('key-up')).toHaveLength(1)
+    controller.destroy()
   })
 })

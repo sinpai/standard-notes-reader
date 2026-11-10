@@ -12,6 +12,16 @@ import {
 
 type ReplyCallback = (data: Record<string, unknown>) => void
 
+/** A keyboard shortcut: `key` and `code` as in KeyboardEvent, plus the modifier keys held. */
+export interface Shortcut {
+  key: string
+  code: string
+  ctrlKey?: boolean
+  metaKey?: boolean
+  shiftKey?: boolean
+  altKey?: boolean
+}
+
 interface PendingMessage {
   action: string
   data: Record<string, unknown>
@@ -168,6 +178,27 @@ export class ComponentBridge {
   flush(): void {
     this.flushSave()
     this.flushComponentData()
+  }
+
+  /**
+   * Presses a Standard Notes keyboard shortcut, as if it were typed in the editor. The keys are
+   * released right away, or the app would think the modifier keys are still held.
+   * Returns false before Standard Notes has registered the editor.
+   */
+  pressShortcut(shortcut: Shortcut): boolean {
+    if (!this.sessionKey) {
+      return false
+    }
+    const key = { key: shortcut.key, code: shortcut.code }
+    this.post(Action.KeyDown, {
+      ...key,
+      ctrlKey: shortcut.ctrlKey ?? false,
+      metaKey: shortcut.metaKey ?? false,
+      shiftKey: shortcut.shiftKey ?? false,
+      altKey: shortcut.altKey ?? false,
+    })
+    this.post(Action.KeyUp, { ...key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false })
+    return true
   }
 
   destroy(): void {

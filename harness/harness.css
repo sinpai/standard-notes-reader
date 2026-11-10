@@ -108,3 +108,13 @@ iframe {
   background: #dcdce2;
   font-weight: 600;
 }
+
+/* Standard Notes' focus mode: no sidebar, the editor framed in the middle. */
+.focus-mode .sidebar {
+  display: none;
+}
+
+.focus-mode .stage {
+  padding: 24px 10%;
+  background: #f4f5f7;
+}

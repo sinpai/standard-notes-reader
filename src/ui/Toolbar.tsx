@@ -18,6 +18,8 @@ interface Props {
   hidden: boolean
   /** The "Aa" button, so focus can return to it when the panel closes. */
   fontsButtonRef: Ref<HTMLButtonElement>
+  /** Turns Standard Notes' focus mode on or off; left out where it has no effect. */
+  focusMode?: { shortcut: string; onToggle: () => void }
 }
 
 const VIEW_OPTIONS: Array<{ value: View; label: string }> = [
@@ -36,6 +38,7 @@ export function Toolbar({
   fontErrors,
   hidden,
   fontsButtonRef,
+  focusMode,
 }: Props) {
   let status: { text: string; tone: 'error' | 'warning' | 'neutral' } | undefined
   if (saveStatus === 'error') {
@@ -55,6 +58,19 @@ export function Toolbar({
         <div title={`Switch between editing and reading (${TOGGLE_VIEW_SHORTCUT})`}>
           <Segmented label="View" options={VIEW_OPTIONS} value={view} onChange={onViewChange} />
         </div>
+        {focusMode && (
+          <button
+            type="button"
+            class="icon-button toolbar-focus"
+            aria-label="Focus mode"
+            title={`Focus mode: hide Standard Notes' sidebars (${focusMode.shortcut})`}
+            onClick={focusMode.onToggle}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+              <path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
+            </svg>
+          </button>
+        )}
         <button
           ref={fontsButtonRef}
           type="button"

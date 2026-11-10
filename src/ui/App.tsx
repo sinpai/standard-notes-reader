@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { AppController } from '../app/AppController'
+import { focusModeAvailable, focusModeShortcutLabel } from '../app/focusMode'
 import { THEME_MONO_STACK, fontStack, fontWeight } from '../fonts/stack'
 import { minSaveIntervalFor } from '../note/readingPosition'
 import { CONTENT_WIDTHS, type View } from '../settings'
@@ -61,6 +62,11 @@ export function App({ controller }: { controller: AppController }) {
   useEffect(() => autoHide.reveal(), [view])
   // Problems stay in sight, and so does the toolbar while the panel it opens is shown.
   const toolbarPinned = panelOpen || state.saveStatus === 'error' || state.fontErrors.length > 0
+  // Only once Standard Notes has said which platform this is: phones get no button.
+  const focusMode =
+    state.platform !== undefined && focusModeAvailable(state.platform, window.screen)
+      ? { shortcut: focusModeShortcutLabel(state.platform), onToggle: () => controller.toggleFocusMode() }
+      : undefined
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -116,6 +122,7 @@ export function App({ controller }: { controller: AppController }) {
         fontErrors={state.fontErrors}
         hidden={autoHide.hidden && !toolbarPinned}
         fontsButtonRef={fontsButtonRef}
+        focusMode={focusMode}
       />
       <main ref={mainRef} class={`content content-${view}`}>
         {note &&

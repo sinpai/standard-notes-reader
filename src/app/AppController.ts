@@ -14,6 +14,7 @@ import type { FontRef, StoredFontFace } from '../fonts/types'
 import { NoteSession } from '../note/NoteSession'
 import type { ReadingPosition } from '../note/readingPosition'
 import { DEFAULT_SETTINGS, parseSettings, uniqueNames, type Settings, type View } from '../settings'
+import { focusModeShortcut } from './focusMode'
 
 const SETTINGS_KEY = 'settings'
 const FONTS_KEY = 'fonts'
@@ -36,6 +37,8 @@ export interface AppState {
   /** False until the note is loaded and its fonts are ready. */
   ready: boolean
   environment?: Environment
+  /** The platform Standard Notes registered the editor with, e.g. "mac-desktop" or "ios". */
+  platform?: string
   settings: Settings
   library: StoredFontFace[]
   note?: NoteState
@@ -108,6 +111,14 @@ export class AppController {
 
   setView(view: View): void {
     this.setState({ view })
+  }
+
+  /**
+   * Turns Standard Notes' focus mode on or off, by pressing its shortcut. Plugins cannot go full
+   * screen themselves, and Standard Notes does not tell them whether focus mode is on.
+   */
+  toggleFocusMode(): void {
+    this.bridge.pressShortcut(focusModeShortcut(this.state.platform))
   }
 
   updateSettings(patch: Partial<Settings>): void {
@@ -211,7 +222,13 @@ export class AppController {
   private handleReady(): void {
     const settings = parseSettings(this.bridge.getComponentData(SETTINGS_KEY))
     const library = parseStoredFaces(this.bridge.getComponentData(FONTS_KEY))
-    this.setState({ settings, library, view: settings.defaultView, environment: this.bridge.environment })
+    this.setState({
+      settings,
+      library,
+      view: settings.defaultView,
+      environment: this.bridge.environment,
+      platform: this.bridge.platform,
+    })
   }
 
   private handleItem(item: ContextItem): void {
